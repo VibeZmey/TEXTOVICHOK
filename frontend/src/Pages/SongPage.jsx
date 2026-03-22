@@ -1,4 +1,4 @@
-import LyricsView from "../components/Lyrics/LyricsView";
+import LyricsView from "../Components/Lyrics/LyricsView";
 
 const SongPage = () => {
     return (

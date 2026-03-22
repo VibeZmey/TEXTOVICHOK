@@ -10,23 +10,27 @@ const LoginPage = () => {
     const [error, setError] = useState("");
     const [isRegister, setIsRegister] = useState(false);
 
-    const { login: authLogin, loading } = useAuth();
+    const { login: authLogin, register: authRegister, loading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
     const from = location.state?.from || "/profile";
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
 
-        try {
-            await authLogin(login, password);
-            navigate(from, { replace: true });
-        } catch (err) {
-            setError("Invalid credentials. Please try again.");
-        }
-    };
+    try {
+      if (isRegister) {
+        await authRegister(login, password);  // 🔹 напрямую
+      } else {
+        await authLogin(login, password);
+      }
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(isRegister ? "Registration failed" : "Invalid credentials");
+    }
+  };
 
     return (
         <div className={styles.page}>

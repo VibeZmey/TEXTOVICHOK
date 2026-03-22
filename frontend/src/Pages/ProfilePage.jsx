@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect } from "react";
 import styles from "./Profile.module.css";
-import SearchBar from "../components/SearchBar/SearchBar";
+import SearchBar from "../Components/SearchBar/SearchBar";
 import { getCurrentUser, CURRENT_USER_ID } from "../data/mockData";
 
 const STORAGE_KEY = "mock_user_albums";

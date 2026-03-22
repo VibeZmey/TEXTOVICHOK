@@ -51,19 +51,33 @@ services:
     image: genius-backend
     container_name: genius-backend
     ports:
-      - "8000:8000"
+      - "5000:5000"
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       MinIO__Endpoint: "minio:9000"
       MinIO__AccessKey: ${MINIO_ACCESS_KEY}
       MinIO__SecretKey: ${MINIO_SECRET_KEY}
       MinIO__BucketName: "images"
-    command: ["dotnet", "WebApi.dll", "--urls", "http://0.0.0.0:8000"]
+    command: ["dotnet", "WebApi.dll", "--urls", "http://0.0.0.0:5000"]
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+    networks:
+      - genius-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: genius-frontend
+    container_name: genius-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
     networks:
       - genius-network
     restart: unless-stopped

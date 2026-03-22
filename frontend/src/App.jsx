@@ -1,11 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import HomePage from "./pages/HomePage";
-import AlbumPage from "./pages/AlbumPage";
-import ProfilePage from "./pages/ProfilePage";
-import AdminPage from "./pages/AdminPage";
-import LoginPage from "./pages/LoginPage";
-import LyricsView from "./components/Lyrics/LyricsView";
+import HomePage from "./Pages/HomePage";
+import AlbumPage from "./Pages/AlbumPage";
+import ProfilePage from "./Pages/ProfilePage";
+import AdminPage from "./Pages/AdminPage";
+import LoginPage from "./Pages/LoginPage";
+import LyricsView from "./Components/Lyrics/LyricsView";
 import "./index.css";
 import { mockUsers } from "./data/mockData";
 import PrivateRoute from "./Router/PrivateRout";
@@ -16,11 +16,10 @@ const initAnnotationsStorage = () => {
             const key = `mock_annotations_${ann.lyricsId || ann.albumId}`;
             const existing = JSON.parse(localStorage.getItem(key) || "[]");
 
-            // Добавляем аннотацию, если её ещё нет
             if (!existing.find(a => a.id === ann.id)) {
                 localStorage.setItem(key, JSON.stringify([...existing, {
                     ...ann,
-                    userId: user.id // ← Обязательно!
+                    userId: user.id
                 }]));
             }
         });
@@ -40,7 +39,6 @@ function App() {
                     <Route path="/album/:id" element={<AlbumPage />} />
                     <Route path="/song/:id" element={<LyricsView />} />
 
-                    {/* ← ← ← ЗАЩИЩЁННЫЕ РОУТЫ */}
                     <Route path="/profile" element={
                         <PrivateRoute>
                             <ProfilePage />
@@ -48,7 +46,7 @@ function App() {
                     } />
 
                     <Route path="/admin" element={
-                        <PrivateRoute roles={["Admin"]}> {/* ← Только админы */}
+                        <PrivateRoute roles={["Admin"]}>
                             <AdminPage />
                         </PrivateRoute>
                     } />

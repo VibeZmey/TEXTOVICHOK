@@ -1,3 +1,4 @@
+// src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import axiosInstance from "../api/axiosInstance";
 import { ENDPOINTS } from "../api/endpoints";
@@ -6,65 +7,70 @@ import { tokenService } from "../api/tokenService";
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    const fetchProfile = useCallback(async () => {
-        try {
-            const res = await axiosInstance.get(ENDPOINTS.USERS.PROFILE);
-            setUser(res.data);
-        } catch {
-            tokenService.clearTokens();
-            setUser(null);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+  const fetchProfile = useCallback(async () => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.USERS.PROFILE);
+      setUser(res.data);
+    } catch {
+      tokenService.clearTokens();
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    const login = async (login, password) => {
-        const res = await axiosInstance.post(ENDPOINTS.AUTH.LOGIN, { login, password });
+  const login = async (login, password) => {
+    const res = await axiosInstance.post(ENDPOINTS.AUTH.LOGIN, { login, password });
 
-        const { accessToken, refreshToken } = res.data;
-        tokenService.setTokens(accessToken, refreshToken);
+    const { accessToken, refreshToken } = res.data;
+    tokenService.setTokens(accessToken, refreshToken);
 
-        await fetchProfile();
-    };
+    await fetchProfile();
+  };
 
-    const logout = async () => {
-        try {
-            await axiosInstance.post(ENDPOINTS.AUTH.LOGOUT);
-        } catch {
-            // даже если backend недоступен — локально выходим
-        } finally {
-            tokenService.clearTokens();
-            setUser(null);
-            window.location.href = "/login";
-        }
-    };
+  // 🔹 Новая функция регистрации
+  const register = async (login, password) => {
+    const res = await axiosInstance.post(ENDPOINTS.AUTH.REGISTER, { login, password });
+  };
 
-    useEffect(() => {
-        const token = tokenService.getAccessToken();
+  const logout = async () => {
+    try {
+      await axiosInstance.post(ENDPOINTS.AUTH.LOGOUT);
+    } catch {
+    } finally {
+      tokenService.clearTokens();
+      setUser(null);
+      window.location.href = "/login";
+    }
+  };
 
-        if (token) {
-            fetchProfile();
-        } else {
-            setLoading(false);
-        }
-    }, [fetchProfile]);
+  useEffect(() => {
+    const token = tokenService.getAccessToken();
 
-    return (
-        <AuthContext.Provider
-            value={{
-                user,
-                loading,
-                login,
-                logout,
-                isAuthenticated: !!user,
-            }}
-        >
-            {children}
-        </AuthContext.Provider>
-    );
+    if (token) {
+      fetchProfile();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchProfile]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        isAuthenticated: !!user,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
