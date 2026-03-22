@@ -11,6 +11,8 @@ public interface IAppDbContext
     DbSet<Role> Roles { get; set; }
     DbSet<Annotation> Annotations { get; set; }
     DbSet<RefreshToken> RefreshTokens { get; set; }
+
+    Task SeedRolesAsync();
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

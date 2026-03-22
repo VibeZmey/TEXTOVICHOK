@@ -1,0 +1,10 @@
+{
+  "CORSRule": [
+    {
+      "AllowedOrigin": ["http://localhost:3000", "http://127.0.0.1:3000"],
+      "AllowedMethod": ["GET", "HEAD"],
+      "AllowedHeader": ["*"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}

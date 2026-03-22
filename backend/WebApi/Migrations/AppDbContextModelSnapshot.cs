@@ -47,6 +47,9 @@ namespace WebApi.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
@@ -65,6 +68,9 @@ namespace WebApi.Migrations
 
                     b.Property<int>("From")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsRejected")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsVerified")
                         .HasColumnType("boolean");
@@ -109,6 +115,13 @@ namespace WebApi.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<int>("Duration")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("OrderIndex")
                         .HasColumnType("integer");
 
@@ -118,6 +131,9 @@ namespace WebApi.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Views")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -178,6 +194,9 @@ namespace WebApi.Migrations
                         .HasColumnType("text");
 
                     b.Property<bool>("IsArtist")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsBlocked")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsEditor")

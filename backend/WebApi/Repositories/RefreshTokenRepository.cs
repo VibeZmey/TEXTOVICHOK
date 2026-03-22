@@ -22,6 +22,15 @@ public class RefreshTokenRepository(IAppDbContext context)
             .FirstOrDefaultAsync(t =>
                 t.Token == refreshToken, cancellationToken);
     }
+    
+    public async Task<RefreshToken?> GetByUserId(Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await context
+            .RefreshTokens
+            .FirstOrDefaultAsync(t =>
+                t.UserId == userId, cancellationToken);
+    }
 
     public async Task Delete(RefreshToken refreshToken, CancellationToken cancellationToken = default)
     {

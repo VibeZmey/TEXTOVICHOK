@@ -13,6 +13,7 @@ public class Album
     public User User { get; set; }
     
     public string? ImageUrl { get; set; }
+    public int Year { get; set; }
     
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

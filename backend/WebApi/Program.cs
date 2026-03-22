@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using WebApi.Extensions;
 using WebApi.Interfaces;
 using WebApi.Interfaces.Repositories;
@@ -11,9 +13,7 @@ using WebApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
 builder.Services.AddControllers();
-builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -34,13 +34,22 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<IJwtService, JwtService>();
+
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("JwtOptions"));
 builder.Services.AddApiAuthentication(builder.Configuration);
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap["role"] = "role";
+
+builder.Services.AddScoped<IAlbumRepository, AlbumRepository>();
+
+builder.Services.AddScoped<ILyricsRepository, LyricsRepository>();
+
+builder.Services.AddScoped<IAnnotationRepository, AnnotationRepository>();
+
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -50,7 +59,8 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
-        context.Database.Migrate();
+        await context.Database.MigrateAsync();
+        await context.SeedRolesAsync();
     }
     catch (Exception ex)
     {
@@ -59,10 +69,15 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers(); 
-app.UseCors("AllowAll");
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseCors("AllowAll");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Urls.Add("http://0.0.0.0:8000");
 app.Run();

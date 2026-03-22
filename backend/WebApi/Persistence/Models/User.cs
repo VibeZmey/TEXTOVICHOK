@@ -12,6 +12,7 @@ public class User
     public bool IsEditor { get; set; } = false;
     public bool IsArtist { get; set; } = false;
     public string? ImageUrl { get; set; }
+    public bool IsBlocked { get; set; } = false;
     
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

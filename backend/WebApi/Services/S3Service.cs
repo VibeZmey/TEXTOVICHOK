@@ -17,15 +17,20 @@ public class S3Service : IS3Service
             var accessKey = configuration["MinIO:AccessKey"];
             var secretKey = configuration["MinIO:SecretKey"];
             _bucketName = configuration["MinIO:BucketName"] ?? "images";
-
             _minioClient = new MinioClient()
                 .WithEndpoint(endpoint)
                 .WithCredentials(accessKey, secretKey)
                 .Build();
         }
 
-        public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
+        public async Task UploadFileAsync(IFormFile image, string id)
         {
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+            if(!allowedTypes.Contains(image.ContentType)) 
+                throw  new Exception("Image is not allowed");
+            
+            await using var stream = image.OpenReadStream();
+            
             var bucketExists = await _minioClient.BucketExistsAsync(
                 new BucketExistsArgs(). WithBucket(_bucketName));
             
@@ -34,20 +39,15 @@ public class S3Service : IS3Service
                 await _minioClient.MakeBucketAsync(
                     new MakeBucketArgs().WithBucket(_bucketName));
             }
-
-            var objectName = $"{Guid.NewGuid()}{Path.GetExtension(fileName)}";
-
+            
             await _minioClient.PutObjectAsync(new PutObjectArgs()
                 .WithBucket(_bucketName)
-                .WithObject(objectName)
-                .WithStreamData(fileStream)
-                . WithObjectSize(fileStream.Length)
-                .WithContentType(contentType));
-
-            return objectName;
+                .WithObject(id)
+                .WithStreamData(stream)
+                .WithObjectSize(stream.Length)
+                .WithContentType(image.ContentType));
         }
 
-        // ✅ НОВЫЙ МЕТОД: Получить stream файла
         public async Task<Stream> GetFileStreamAsync(string objectName)
         {
             var memoryStream = new MemoryStream();

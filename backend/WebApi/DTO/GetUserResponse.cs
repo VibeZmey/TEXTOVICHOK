@@ -9,6 +9,7 @@ public class GetUserResponse
     public bool IsEditor { get; set; }
     public bool IsArtist { get; set; }
     public string? ImageUrl { get; set; }
+    public bool IsBlocked { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }

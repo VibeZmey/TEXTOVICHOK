@@ -19,6 +19,21 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Annotation> Annotations { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     
+    public async Task SeedRolesAsync()
+    {
+        if (!await Roles.AnyAsync())
+        {
+            var roles = new[]
+            {
+                new Role { Id = Guid.NewGuid(), Name = "Admin" },
+                new Role { Id = Guid.NewGuid(), Name = "User" }
+            };
+            
+            await Roles.AddRangeAsync(roles);
+            await SaveChangesAsync();
+        }
+    }
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new UserConfiguration());

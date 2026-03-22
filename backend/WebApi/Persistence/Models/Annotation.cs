@@ -18,7 +18,8 @@ public class Annotation
     
     public string Text { get; set; }
     public bool IsVerified { get; set; } = false;
-
+    
+    public bool IsRejected { get; set; } = false;
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }
