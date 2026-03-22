@@ -1,0 +1,447 @@
+.page {
+    min-height: 100vh;
+    background: #0b1623;
+}
+
+/* ===== NAVBAR ===== */
+.navbar {
+    height: 60px;
+    background: #0b1623;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    border-bottom: 1px solid #162233;
+}
+.navLogo{
+    color: #2fc880;
+    font-weight: 700;
+    font-size: 18px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+}
+.navLeft {
+    color: #43d893;
+    font-weight: 700;
+    font-size: 18px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+}
+
+.navRight {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.navRight:hover {
+    color: #ff3366;
+}
+
+.search {
+    width: 400px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #1e2a3a;
+    background: #162233;
+    padding: 0 16px;
+    color: #fff;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.search:focus {
+    outline: none;
+    border-color: #ff3366;
+    box-shadow: 0 0 0 3px rgba(255, 51, 102, 0.1);
+}
+
+.search::placeholder {
+    color: #667788;
+}
+
+/* ===== HERO SECTION ===== */
+.hero {
+    background: linear-gradient(180deg, #41976e 0%, #0e1823 100%);
+    padding: 40px 40px 30px; /* Уменьшил padding */
+    position: relative;
+    overflow: hidden;
+    border-bottom: 2px solid #98314b;
+}
+
+.hero::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 80% 20%, rgba(209, 49, 89, 0.45) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.heroContent {
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.heroTitle {
+    margin: 0 0 12px;
+    font-size: 42px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -1px;
+}
+
+.heroSubtitle {
+    margin: 0 0 24px;
+    font-size: 18px;
+    color: #a7bbca;
+    max-width: 600px;
+    font-family: 'Roboto Slab', serif;
+}
+
+.heroButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ff3366;
+    color: #fff;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(255, 51, 102, 0.3);
+}
+
+.heroButton:hover {
+    background: #ff4d7a;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 51, 102, 0.4);
+}
+
+.buttonArrow {
+    font-size: 18px;
+    transition: transform 0.3s;
+}
+
+.heroButton:hover .buttonArrow {
+    transform: translateX(4px);
+}
+
+
+/* ===== CONTENT WRAPPER ===== */
+.contentWrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px; /* Отступ между заголовком и колонками */
+}
+
+/* Заголовок над обеими колонками */
+.sectionHeader {
+    width: 100%;
+}
+
+.sectionTitle {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 750;
+    color: #fff;
+}
+
+/* Сетка двух колонок под заголовком */
+.columnsGrid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 60px;
+    align-items: start; /* Выравнивание по верху */
+}
+
+/* ===== LEFT COLUMN ===== */
+.column {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== ALBUM GRID ===== */
+.albumGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px;
+}
+
+.albumCard {
+    display: block;
+    text-decoration: none;
+    background: #162233;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.albumCard:hover {
+    background: #1e2a3a;
+    transform: translateY(-4px);
+    border-color: #ff3366;
+    box-shadow: 0 8px 25px rgba(255, 51, 102, 0.15);
+}
+
+.albumCard:hover::before {
+    opacity: 1;
+}
+
+.albumCoverWrapper {
+    position: relative;
+    margin-bottom: 14px;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+}
+
+.albumCover,
+.albumCoverPlaceholder {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.albumCoverPlaceholder {
+    background: linear-gradient(135deg, #1e2a3a, #2a3b52);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.coverIcon {
+    font-size: 48px;
+    opacity: 0.3;
+}
+
+.playOverlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.albumCard:hover .playOverlay {
+    opacity: 1;
+}
+
+.playIcon {
+    color: #fff;
+    font-size: 32px;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+}
+
+.albumName {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Roboto Slab', serif;
+}
+
+.albumArtist {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: #8899a6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Roboto Slab', serif;
+}
+
+.albumMeta {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    color: #667788;
+    font-family: 'Roboto Slab', serif;
+}
+
+.albumYear {
+    padding: 3px 8px;
+    background: #0b1623;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.albumTracks {
+    padding: 3px 8px;
+    background: rgba(255, 51, 102, 0.15);
+    color: #ff6b8a;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+/* ===== SIDEBAR (RIGHT COLUMN) ===== */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    /* margin-top убран — выравнивание теперь за счёт общей структуры */
+}
+
+.sidebarSection {
+    background: #162233;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.sidebarTitle {
+    margin: 0 0 16px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    font-family: 'Roboto Slab', serif;
+}
+
+/* Trending List */
+.trendingList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.trendingItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+    background: transparent;
+    font-family: 'Roboto Slab', serif;
+}
+
+.trendingItem:hover {
+    background: #1e2a3a;
+}
+
+.trendingRank {
+    width: 28px;
+    height: 28px;
+    background: #ff3366;
+    color: #fff;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.trendingInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.trendingName {
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Roboto Slab', serif;
+}
+
+.trendingArtist {
+    color: #8899a6;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Roboto Slab', serif;
+}
+
+/* Genre Tags */
+.genreTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.genreTag {
+    background: #0b1623;
+    color: #b8c2cc;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #1e2a3a;
+    font-family: 'Roboto Slab', serif;
+}
+
+.genreTag:hover {
+    background: #0b1623;
+    color: #d64269;
+    border-color: #d64269;
+    transform: translateY(-2px);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .columnsGrid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .sidebar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        padding: 0 20px;
+    }
+
+    .search {
+        width: 200px;
+    }
+
+    .hero {
+        padding: 40px 20px;
+    }
+
+    .heroTitle {
+        font-size: 32px;
+    }
+
+    .albumGrid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 16px;
+    }
+
+    .sidebar {
+        grid-template-columns: 1fr;
+    }
+}

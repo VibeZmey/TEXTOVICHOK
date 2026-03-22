@@ -1,0 +1,569 @@
+    .page {
+        min-height: 100vh;
+        background: #0b1623;
+    }
+    .navbar {
+        height: 60px;
+        background: #0b1623;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 40px;
+        color: #fff;
+    }
+    .navLeft,
+    .navRight {
+        cursor: pointer;
+    }
+    .navRight {
+        color: #ff3366;
+        font-weight: 700;
+        font-size: 18px;
+        cursor: pointer;
+        letter-spacing: 0.5px;
+    }
+    .navLeft:hover {
+        color: #ff3366;
+    }
+    .primary {
+        background: #162233;
+        color: #fff;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .primary:hover {
+        background: #1f2f45;
+    }
+
+    .ghost {
+        background: transparent;
+        border: 1px solid #888;
+        color: #aaa;
+        padding: 10px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .ghost:hover {
+        border-color: #ccc;
+        color: #fff;
+    }
+    .input, .textarea {
+        width: 100%;
+        margin-top: 10px;
+        border: 1px solid #2a3b52;
+        background: #132033;
+        color: #fff;
+        border-radius: 8px;
+        padding: 10px;
+    }
+    .modalOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.45);
+        display: grid;
+        place-items: center;
+        z-index: 50;
+    }
+
+    .modal {
+        width: min(500px, 98vw);
+        background: #0b1623;
+        color: #fff;
+        border-radius: 12px;
+        padding: 18px;
+    }
+    .modalActions {
+        margin-top: 14px;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+    }
+    .profileHeader {
+        background: linear-gradient(180deg, #319367 0%, #0b1623 100%);
+        padding: 60px 0 40px;
+        max-height: 150px;
+        position: relative;
+        overflow: visible; /* ← Изменил с hidden на visible, чтобы аватарка не обрезалась */
+        border-bottom: 2px solid #ff3366;
+    }
+
+    .profileHeader::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 80% 20%, rgba(244, 84, 123, 0.65) 0%, transparent 60%);
+        pointer-events: none;
+        z-index: 1; /* Свечение под контентом */
+    }
+
+    .profileWrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 48px;
+        display: flex;
+        align-items: flex-start;
+        gap: 32px;
+        position: relative;
+        z-index: 2; /* Контент поверх свечения */
+    }
+
+    .avatarContainer {
+        position: relative;
+        top: -5px;
+        z-index: 3; /* ← Аватарка выше всех элементов хедера */
+    }
+
+    .avatar {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        background: #162233;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 3; /* ← Дублирую для надёжности */
+    }
+
+    .avatarText {
+        color: #b8c2cc;
+        font-size: 14px;
+    }
+
+    .profileInfo {
+        flex: 1;
+        padding-top: 10px;  /* Чуть уменьшил отступ сверху */
+    }
+
+    .usernameRow {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 8px;  /* Чуть уменьшил отступ */
+    }
+    .username {
+        margin: 0;
+        color: #fff;
+        font-size: 28px;
+        font-weight: 700;
+    }
+
+    .badges {
+        display: flex;
+        gap: 12px;
+    }
+
+    .badge {
+        background: #e8e8e8;
+        color: #1a1a1a;
+        padding: 4px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .description {
+        margin: 0;
+        color: rgba(255,255,255,0.9);
+        font-size: 15px;
+        line-height: 1.5;
+    }
+    .contentWrapper {
+        max-width: 900px;  /* Уменьшил с 1600px до 900px - ближе к центру */
+        margin: 40px auto 0;  /* Добавил отступ сверху (опустил секции) */
+        padding: 0 48px 40px;  /* Убрал верхний padding, добавил нижний */
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 70px;  /* Уменьшил gap с 60px до 40px */
+        background: #0b1623;
+    }
+
+    .column {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sectionTitle {
+        color: #fff;
+        font-size: 18px;  /* Чуть уменьшил заголовок */
+        font-weight: 600;
+        margin: 0 0 20px 0;  /* Уменьшил отступ снизу */
+    }
+    .list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;  /* Уменьшил gap между элементами */
+    }
+    .listItem {
+        background: #162233;
+        border-radius: 8px;
+        padding: 10px;  /* Чуть уменьшил padding */
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .listItem:hover {
+        background: #1f2f45;
+    }
+
+    .listItemTitle {
+        color: #fff;
+        font-weight: 600;
+        font-size: 15px;
+        margin-bottom: 4px;
+    }
+
+    .listItemArtist {
+        color: #8899a6;
+        font-size: 14px;
+    }
+
+    .readReview {
+        color: #ff3366;
+        font-size: 13px;
+        font-weight: 500;
+        margin-top: 6px;
+        cursor: pointer;
+    }
+
+    .addLyricsButton {
+        background: #ff3366;
+        color: #fff;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 16px;
+        width: fit-content;
+        transition: background 0.2s;
+    }
+
+    .addLyricsButton:hover {
+        background: #ff4d7a;
+    }
+    .albumCover {
+        width: 50px;
+        height: 50px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    .albumCoverPlaceholder {
+        width: 50px;
+        height: 50px;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #162233, #223247);
+        flex-shrink: 0;
+    }
+    .albumDescription {
+        color: #7db8cc;
+        font-size: 13px;
+        margin-top: 4px;
+        line-height: 1.4;
+    }
+    .emptyList {
+        color: #8899a6;
+        font-size: 14px;
+        padding: 20px;
+        text-align: center;
+        background: #162233;
+        border-radius: 8px;
+    }
+
+    /* ===== ICON BUTTONS (Right side of album card) ===== */
+    .iconBtn {
+        background: #2a3b52;
+        color: #fff;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .iconBtn:hover {
+        background: #3a4b62;
+        transform: scale(1.05);
+    }
+
+    .iconBtnDelete {
+        background: rgba(255, 51, 102, 0.2);
+        color: #ff6b8a;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        padding: 0;
+        flex-shrink: 0;
+    }
+    .iconBtnDelete:hover {
+        color: #fff;
+        transform: scale(1.05);
+    }
+    .tinyBtn {
+        background: transparent;
+        border: 1px solid #888;
+        color: #aaa;
+        padding: 4px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .tinyBtn:hover {
+        border-color: #ccc;
+        color: #fff;
+    }
+    .tinyBtnDelete {
+        background: transparent;
+        color: #ff6b8a;
+        border: 1px solid rgba(255, 51, 102, 0.3);
+        padding: 4px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .tinyBtnDelete:hover {
+        background: #ff3366;
+        color: #fff;
+    }
+    .danger {
+        background: #ff3366;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .danger:hover {
+        background: #ff4d7a;
+        transform: translateY(-1px);
+    }
+
+
+    /* ===== EDIT MODAL ===== */
+    .modalLarge {
+        width: min(600px, 95vw);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .editSection {
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #1e2a3a;
+    }
+
+    .editSection:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    /* Scrollbar for songs list */
+    .editSection::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .editSection::-webkit-scrollbar-track {
+        background: #0b1623;
+        border-radius: 3px;
+    }
+
+    .editSection::-webkit-scrollbar-thumb {
+        background: #2a3b52;
+        border-radius: 3px;
+    }
+
+    .editSection::-webkit-scrollbar-thumb:hover {
+        background: #ff3366;
+    }
+    /* ===== SHOW ALL BUTTON ===== */
+    .showAllButton {
+        background: transparent;
+        color: #ff6b8a;
+        border: 1px solid rgba(255, 107, 138, 0.3);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+        margin-top: 8px;
+    }
+
+    .showAllButton:hover {
+        background: rgba(255, 107, 138, 0.1);
+        border-color: #ff6b8a;
+        color: #ff6b8a;
+    }
+
+    /* ===== READ REVIEW LINK ===== */
+    .readReview {
+        color: #ff3366;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .readReview:hover {
+        color: #ff6b8a;
+        text-decoration: underline;
+    }
+    /* ===== DELETE ANNOTATION BUTTON ===== */
+    .deleteAnnotationBtn {
+        background: rgba(255, 51, 102, 0.2);
+        color: #ff6b8a;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        padding: 0;
+        flex-shrink: 0;
+        margin-top: 20px;
+    }
+
+    .deleteAnnotationBtn:hover {
+        background: rgba(255, 51, 102, 0.2);
+        color: #ff3366;
+        transform: scale(1.1);
+    }
+
+
+    .listItem:hover {
+        background: #1f2f45;
+    }
+
+    .annotationCard {
+        background: #162233;
+        border-radius: 8px;
+        padding: 14px 18px;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .annotationContent {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    /* ===== STATUS BADGE FOR ANNOTATIONS ===== */
+    .annotationStatusRow {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .annotationStatus {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .annotationStatus.approved {
+        background: rgba(39, 174, 96, 0.15);
+        color: #27ae60;
+        border: 1px solid rgba(39, 174, 96, 0.3);
+    }
+
+    .annotationStatus.rejected {
+        background: rgba(231, 76, 60, 0.15);
+        color: #e74c3c;
+        border: 1px solid rgba(231, 76, 60, 0.3);
+    }
+
+    .annotationStatus.pending {
+        background: rgba(243, 156, 18, 0.15);
+        color: #f39c12;
+        border: 1px solid rgba(243, 156, 18, 0.3);
+    }
+
+    .annotationDate {
+        font-size: 11px;
+        color: #667788;
+    }
+
+    .annotationPreview {
+        font-size: 13px;
+        color: #b8c2cc;
+        margin: 6px 0 10px;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* ===== VISUAL STATES FOR ANNOTATION CARD ===== */
+    .annotationCard {
+        background: #0b1623;
+        border: 1px solid #1a2a3a;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        transition: border-color 0.2s, background 0.2s;
+    }
+
+    /* Адаптация кнопки удаления под статус */
+    .annotationCard.rejected .deleteAnnotationBtn {
+        opacity: 0.5;
+    }
+    .annotationCard.rejected .deleteAnnotationBtn:hover {
+        opacity: 1;
+    }

@@ -1,0 +1,488 @@
+.page {
+    min-height: 100vh;
+    background: #0b1623;
+}
+
+/* ===== NAVBAR ===== */
+.navbar {
+    background: #07121c;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    border-bottom: 1px solid #162233;
+}
+
+.navLeft {
+    color: #fff;
+    font-weight: 700;
+    font-size: 18px;
+    text-decoration: none;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s;
+}
+
+.navLeft:hover {
+    color: #ff3366;
+}
+
+.navRight {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.navRight:hover {
+    color: #ff3366;
+}
+
+/* ===== ALBUM HERO SECTION - УМЕНЬШЕНА ===== */
+.albumHero {
+    background: linear-gradient(180deg, #41976e 0%, #0e1823 100%);
+    padding: 40px 40px 30px; /* Уменьшил padding */
+    position: relative;
+    overflow: hidden;
+    border-bottom: 2px solid #ff3366;
+}
+
+.albumHero::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(209, 49, 89, 0.45) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.heroContent {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column; /* Вертикальное расположение */
+    align-items: center; /* Центрирование по горизонтали */
+    gap: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+
+/* Обложка уменьшена с 280px до 180px */
+.albumCoverLarge {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.coverImage,
+.coverPlaceholder {
+    width: 180px; /* Было 280px */
+    height: 180px; /* Было 280px */
+    border-radius: 10px;
+    object-fit: cover;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.coverPlaceholder {
+    background: linear-gradient(135deg, #1e2a3a, #314a64);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.coverIcon {
+    font-size: 50px; /* Было 80px */
+    opacity: 0.3;
+}
+
+.coverGlow {
+    position: absolute;
+    inset: -15px; /* Было -20px */
+    background: radial-gradient(circle, rgba(255, 51, 102, 0.3) 0%, transparent 70%);
+    filter: blur(30px); /* Было 40px */
+    z-index: -1;
+    opacity: 0.6;
+    align-items: center;
+}
+
+/* Информация об альбоме */
+.albumHeroInfo {
+    flex: 1;
+    padding-top: 10px; /* Уменьшил отступ */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Центрируем по вертикали */
+    min-height: 180px; /* Чтобы соответствовать высоте обложки */
+    align-items: center;
+}
+
+.albumTitle {
+    margin: 0 0 12px; /* Уменьшил отступ */
+    font-size: 36px; /* Было 48px */
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -1px;
+    line-height: 1.1;
+}
+
+.albumMeta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.artistName {
+    color: #fff;
+    font-size: 16px; /* Было 18px */
+    font-weight: 600;
+}
+
+.metaDivider {
+    color: #667788;
+    font-size: 14px; /* Было 16px */
+}
+
+.releaseYear,
+.trackCount {
+    color: #8899a6;
+    font-size: 14px; /* Было 15px */
+    font-weight: 500;
+}
+
+/* ===== CONTENT WRAPPER ===== */
+.contentWrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px 40px; /* Уменьшил padding */
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* SECTION HEADER */
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #1e2a3a;
+}
+
+.sectionTitle {
+    margin: 0;
+    font-size: 22px; /* Было 24px */
+    font-weight: 700;
+    color: #fff;
+}
+
+/* COLUMNS GRID */
+.columnsGrid {
+    display: grid;
+    grid-template-columns: 1fr 320px; /* Уменьшил ширину сайдбара */
+    gap: 32px; /* Было 40px */
+    align-items: start;
+}
+
+/* ===== LEFT COLUMN - TRACKS ===== */
+.column {
+    display: flex;
+    flex-direction: column;
+}
+
+.trackList {
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.trackItem {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: #162233;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.trackItem::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    transform: scaleY(0);
+    transition: transform 0.2s;
+}
+
+.trackItem:hover {
+    background: #1e2a3a;
+    transform: translateX(4px);
+}
+
+.trackItem:hover::before {
+    transform: scaleY(1);
+}
+
+.trackIndex {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0b1623;
+    color: #8899a6;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.trackItem:hover .trackIndex {
+    background: #ff3366;
+    color: #fff;
+}
+
+.trackInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.trackName {
+    color: #fff;
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.trackArtist {
+    color: #8899a6;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.trackDuration {
+    color: #667788;
+    font-size: 13px;
+    font-weight: 500;
+    min-width: 50px;
+    text-align: right;
+}
+
+/* Empty state */
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #8899a6;
+    text-align: center;
+}
+
+.emptyIcon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.emptyState p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* ===== RIGHT COLUMN - SIDEBAR ===== */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.sidebarCard {
+    background: #162233;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #1e2a3a;
+}
+
+.sidebarTitle {
+    margin: 0 0 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #2a3b52;
+}
+
+.infoBlock {
+    margin-bottom: 24px;
+}
+
+.infoBlock:last-child {
+    margin-bottom: 0;
+}
+
+.infoLabel {
+    display: block;
+    color: #ff6b8a;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.infoText {
+    margin: 0;
+    color: #b8c2cc;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.infoRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #1e2a3a;
+}
+
+.infoRow:last-child {
+    border-bottom: none;
+}
+
+.infoLabelSmall {
+    color: #8899a6;
+    font-size: 14px;
+}
+
+.infoValue {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Genre tags */
+.genreTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.genreTag {
+    background: rgba(255, 51, 102, 0.15);
+    color: #ff6b8a;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 51, 102, 0.3);
+    transition: all 0.2s;
+}
+
+.genreTag:hover {
+    background: #ff3366;
+    color: #fff;
+    border-color: #ff3366;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .columnsGrid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .heroContent {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .albumHeroInfo {
+        padding-top: 0;
+        min-height: auto;
+        align-items: center;
+    }
+
+    .albumMeta {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        padding: 0 20px;
+    }
+
+    .albumHero {
+        padding: 30px 20px 20px;
+    }
+
+    .coverImage,
+    .coverPlaceholder {
+        width: 150px;
+        height: 150px;
+    }
+
+    .albumTitle {
+        font-size: 28px;
+    }
+
+    .artistName {
+        font-size: 15px;
+    }
+
+    .contentWrapper {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .heroContent {
+        gap: 20px;
+    }
+
+    .coverImage,
+    .coverPlaceholder {
+        width: 130px;
+        height: 130px;
+    }
+
+    .albumTitle {
+        font-size: 24px;
+    }
+
+    .albumMeta {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .metaDivider {
+        display: none;
+    }
+}
