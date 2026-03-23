@@ -81,7 +81,6 @@ const ProfilePage = () => {
         [editSongForm]
     );
 
-    // ===== ЗАГРУЗКА АННОТАЦИЙ ПОЛЬЗОВАТЕЛЯ =====
     useEffect(() => {
         const loadUserAnnotations = () => {
             setLoadingAnnotations(true);
