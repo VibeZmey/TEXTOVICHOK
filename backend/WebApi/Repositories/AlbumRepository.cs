@@ -31,7 +31,7 @@ public class AlbumRepository(
             var user = await userRepository.GetUserById(album.UserId, cancellationToken);
             if(user is null) 
                 throw new Exception("User not found");
-            user.IsEditor = true;
+            user.IsArtist = true;
         }
         
         Guid id = Guid.NewGuid();

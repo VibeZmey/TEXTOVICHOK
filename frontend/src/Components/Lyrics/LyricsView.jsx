@@ -1,90 +1,66 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import styles from "./LyricsView.module.css";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import axiosInstance from "../../api/axiosInstance";
-import { ENDPOINTS } from "../../api/endpoints";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import SearchBar from "../SearchBar/SearchBar.jsx";
 import { useAuth } from "../../context/AuthContext";
-import { CURRENT_USER_ID } from "../../data/mockData";
-
-
-const LYRICS_ID = "00000000-0000-0000-0000-000000000001";
-const LS_KEY = `mock_annotations_${LYRICS_ID}`;
-
-const demoLyrics = `I walk this road alone tonight
-The city lights are shining bright
-But every step reminds me why
-Some dreams just slowly pass us by
-
-My tea's gone cold, I'm wonderin' why I
-Got out of bed at all
-The morning rain clouds up my window
-And I can't see at all
-And even if I could, it'd all be grey
-But your picture on my wall
-It reminds me that it's not so bad, it's not so bad
-
-My tea's gone cold, I'm wonderin' why I
-Got out of bed at all
-The morning rain clouds up my window
-And I can't see at all
-And even if I could, it'd all be grey
-But your picture on my wall
-It reminds me that it's not so bad, it's not so bad
-
-My tea's gone cold, I'm wonderin' why I
-Got out of bed at all
-The morning rain clouds up my window
-And I can't see at all
-And even if I could, it'd all be grey
-But your picture on my wall
-It reminds me that it's not so bad, it's not so bad
-`;
+import {lyricsService, annotationService, albumService} from "../../api/apiService";
+import Navbar from "../NavBar/NavBar.jsx";
 
 const LyricsView = () => {
+    const { id: lyricsId } = useParams();
     const { isAuthenticated, user } = useAuth();
     const containerRef = useRef(null);
     const navigate = useNavigate();
     const location = useLocation();
 
+    const preloadedTrack = location.state?.track || null;
+    const preloadedAlbum = location.state?.album || null;
+
+    const [track, setTrack] = useState(preloadedTrack);
+    const [album, setAlbum] = useState(preloadedAlbum);
     const [annotations, setAnnotations] = useState([]);
+
     const [activeOffset, setActiveOffset] = useState(null);
     const [selectionState, setSelectionState] = useState(null);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newAnnotationText, setNewAnnotationText] = useState("");
-    const [loadingAnnotations, setLoadingAnnotations] = useState(false);
 
-    const lyricsText = useMemo(() => demoLyrics.replace(/\r\n/g, "\n"), []);
+    const [loadingAnnotations, setLoadingAnnotations] = useState(true);
+    const [error, setError] = useState("");
 
+    useEffect(() => {
+        if (!preloadedTrack) {
+            // На случай прямого входа по URL без state
+            setError("Song data was not passed. Open song from album page.");
+        }
+    }, [preloadedTrack]);
 
     // ===== ЗАГРУЗКА АННОТАЦИЙ =====
     useEffect(() => {
+        if (!lyricsId) return;
+
         const loadAnnotations = async () => {
             setLoadingAnnotations(true);
             try {
-                const res = await axiosInstance.get(ENDPOINTS.LYRICS.ANNOTATIONS(LYRICS_ID));
+                const res = await lyricsService.getAnnotations(lyricsId);
                 const serverData = Array.isArray(res.data) ? res.data : [];
                 setAnnotations(serverData);
-                localStorage.setItem(LS_KEY, JSON.stringify(serverData));
-                return;
-            } catch {}
-            finally {
-                setLoadingAnnotations(false);
-            }
-
-            try {
-                const raw = localStorage.getItem(LS_KEY);
-                const parsed = raw ? JSON.parse(raw) : [];
-                setAnnotations(Array.isArray(parsed) ? parsed : []);
-            } catch {
+            } catch (err) {
+                console.error("Failed to load annotations:", err?.response?.data || err);
                 setAnnotations([]);
+            } finally {
+                setLoadingAnnotations(false);
             }
         };
 
         loadAnnotations();
-    }, []);
+    }, [lyricsId]);
 
+    const lyricsText = useMemo(() => {
+        const text = track?.text || "";
+        return text.replace(/\r\n/g, "\n");
+    }, [track?.text]);
 
     // ===== НОРМАЛИЗАЦИЯ АННОТАЦИЙ =====
     const normalizedAnnotations = useMemo(() => {
@@ -101,7 +77,6 @@ const LyricsView = () => {
             .sort((a, b) => a.from - b.from || String(a.id).localeCompare(String(b.id)));
     }, [annotations, lyricsText.length]);
 
-    // ===== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ =====
     const getGlobalOffset = (node, nodeOffset) => {
         let el = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
         while (el && el !== containerRef.current && !el.dataset?.start) el = el.parentElement;
@@ -115,18 +90,14 @@ const LyricsView = () => {
         return Math.min(Math.max(global, segStart), segEnd);
     };
 
-    // ===== АКТИВНЫЕ АННОТАЦИИ =====
     const activeAnnotations = useMemo(() => {
         if (activeOffset == null) return [];
-        const list = normalizedAnnotations.filter(
-            (a) => a.from <= activeOffset && activeOffset < a.to
-        );
+        const list = normalizedAnnotations.filter((a) => a.from <= activeOffset && activeOffset < a.to);
         const unique = new Map();
         for (const a of list) unique.set(a.id, a);
         return [...unique.values()];
     }, [normalizedAnnotations, activeOffset]);
 
-    // ===== ДИАПАЗОН АКТИВНОЙ ГРУППЫ =====
     const activeGroupRange = useMemo(() => {
         if (!activeAnnotations.length) return null;
         const from = Math.min(...activeAnnotations.map((a) => a.from));
@@ -134,7 +105,6 @@ const LyricsView = () => {
         return { from, to };
     }, [activeAnnotations]);
 
-    // ===== СЕГМЕНТЫ ТЕКСТА =====
     const segments = useMemo(() => {
         const points = new Set([0, lyricsText.length]);
         normalizedAnnotations.forEach((a) => {
@@ -163,7 +133,6 @@ const LyricsView = () => {
         return result;
     }, [lyricsText, normalizedAnnotations]);
 
-    // ===== ОБРАБОТКА ВЫДЕЛЕНИЯ ТЕКСТА =====
     const handleMouseUp = () => {
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
@@ -202,10 +171,9 @@ const LyricsView = () => {
         });
     };
 
-    // ===== СОЗДАНИЕ АННОТАЦИИ =====
     const submitAnnotation = async (e) => {
         e.preventDefault();
-        if (!selectionState) return;
+        if (!selectionState || !lyricsId) return;
 
         if (!isAuthenticated) {
             setIsCreateModalOpen(false);
@@ -213,8 +181,8 @@ const LyricsView = () => {
                 state: {
                     from: location.pathname,
                     selectionState,
-                    lyricsId: LYRICS_ID
-                }
+                    lyricsId,
+                },
             });
             return;
         }
@@ -223,40 +191,26 @@ const LyricsView = () => {
         if (!text) return;
 
         const payload = {
-            lyricsId: LYRICS_ID,
+            lyricsId,
             userId: user?.id,
             from: selectionState.from,
             to: selectionState.to,
             text,
-            status: "pending",
-            isVerified: false
-        };
-
-        const optimistic = {
-            id: `local-${Date.now()}`,
-            ...payload,
-            createdAt: new Date().toISOString(),
         };
 
         try {
-            const res = await axiosInstance.post(ENDPOINTS.ANNOTATIONS.CREATE, payload);
-            const saved = res?.data || optimistic;
-
-            setAnnotations((prev) => {
-                const updated = [...prev, saved].sort((a, b) => a.from - b.from);
-                localStorage.setItem(LS_KEY, JSON.stringify(updated));
-                return updated;
-            });
-
-            setActiveOffset(Math.floor((saved.from + saved.to) / 2));
-        } catch {
-            setAnnotations((prev) => {
-                const updated = [...prev, optimistic].sort((a, b) => a.from - b.from);
-                localStorage.setItem(LS_KEY, JSON.stringify(updated));
-                return updated;
-            });
-
-            setActiveOffset(Math.floor((optimistic.from + optimistic.to) / 2));
+            const res = await annotationService.create(payload);
+            const saved = res?.data;
+            if (saved) {
+                setAnnotations((prev) => [...prev, saved].sort((a, b) => a.from - b.from));
+                setActiveOffset(Math.floor((saved.from + saved.to) / 2));
+            } else {
+                const refreshed = await lyricsService.getAnnotations(lyricsId);
+                setAnnotations(Array.isArray(refreshed.data) ? refreshed.data : []);
+            }
+        } catch (err) {
+            console.error("Failed to save annotation:", err?.response?.data || err);
+            alert("Failed to save annotation");
         } finally {
             setSelectionState(null);
             setIsCreateModalOpen(false);
@@ -265,19 +219,15 @@ const LyricsView = () => {
         }
     };
 
+    const trackTitle = track?.name || track?.title || "Track Title";
+    const artistName = album?.artist || "Artist";
+    const albumName = album?.name || "Album";
+    const releaseYear = album?.year || track?.year || "N/A";
+
     return (
         <div className={styles.page}>
-            {/* NAVBAR */}
-            <div className={styles.navbar}>
-                <Link to="/home" className={styles.navLeft}>Home</Link>
-                <SearchBar
-                    placeholder="Search lyrics or artists"
-                    onSearch={(query) => console.log(query)}
-                />
-                <Link to="/profile" className={styles.navRight}>Profile</Link>
-            </div>
+            <Navbar/>
 
-            {/* HERO SECTION - TRACK INFO (CENTERED) */}
             <div className={styles.trackHero}>
                 <div className={styles.heroContent}>
                     <div className={styles.trackCoverLarge}>
@@ -287,89 +237,77 @@ const LyricsView = () => {
                         <div className={styles.coverGlow} />
                     </div>
                     <div className={styles.trackHeroInfo}>
-                        <h1 className={styles.trackTitle}>Track Title</h1>
+                        <h1 className={styles.trackTitle}>{trackTitle}</h1>
                         <div className={styles.trackMeta}>
-                            <span className={styles.artistName}>Artist</span>
+                            <span className={styles.artistName}>{artistName}</span>
                             <span className={styles.metaDivider}>•</span>
-                            <span className={styles.albumName}>Album</span>
+                            <span className={styles.albumName}>{albumName}</span>
                             <span className={styles.metaDivider}>•</span>
-                            <span className={styles.releaseYear}>2024</span>
+                            <span className={styles.releaseYear}>{releaseYear}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* MAIN CONTENT */}
             <div className={styles.contentWrapper}>
-                {/* SECTION TITLE */}
                 <div className={styles.sectionHeader}>
                     <h2 className={styles.sectionTitle}>Lyrics</h2>
                 </div>
 
-                {/* TWO COLUMNS */}
                 <div className={styles.columnsGrid}>
-                    {/* LEFT COLUMN - LYRICS */}
                     <div className={styles.column}>
                         <div className={styles.lyricsCard}>
-                            <div
-                                ref={containerRef}
-                                className={styles.lyricsContent}
-                                onMouseUp={handleMouseUp}
-                            >
-                                {segments.map((seg, idx) => {
-                                    if (!seg.isAnnotated) {
+                            {error ? (
+                                <div className={styles.emptyState}>{error}</div>
+                            ) : !lyricsText ? (
+                                <div className={styles.emptyState}>No lyrics text</div>
+                            ) : (
+                                <div ref={containerRef} className={styles.lyricsContent} onMouseUp={handleMouseUp}>
+                                    {segments.map((seg, idx) => {
+                                        if (!seg.isAnnotated) {
+                                            return (
+                                                <span key={`p-${idx}`} data-start={seg.from} data-end={seg.to}>
+                                                    {seg.text}
+                                                </span>
+                                            );
+                                        }
+
+                                        const isInActiveGroup =
+                                            activeGroupRange &&
+                                            seg.from < activeGroupRange.to &&
+                                            seg.to > activeGroupRange.from;
+
                                         return (
                                             <span
-                                                key={`p-${idx}`}
+                                                key={`a-${idx}`}
                                                 data-start={seg.from}
                                                 data-end={seg.to}
+                                                className={`${styles.annotated} ${isInActiveGroup ? styles.annotatedActive : ""}`}
+                                                onClick={() => setActiveOffset(Math.floor((seg.from + seg.to) / 2))}
                                             >
                                                 {seg.text}
                                             </span>
                                         );
-                                    }
-
-                                    const isInActiveGroup =
-                                        activeGroupRange &&
-                                        seg.from < activeGroupRange.to &&
-                                        seg.to > activeGroupRange.from;
-
-                                    return (
-                                        <span
-                                            key={`a-${idx}`}
-                                            data-start={seg.from}
-                                            data-end={seg.to}
-                                            className={`${styles.annotated} ${
-                                                isInActiveGroup ? styles.annotatedActive : ""
-                                            }`}
-                                            onClick={() =>
-                                                setActiveOffset(Math.floor((seg.from + seg.to) / 2))
-                                            }
-                                        >
-                                            {seg.text}
-                                        </span>
-                                    );
-                                })}
-                            </div>
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN - ANNOTATIONS SIDEBAR */}
                     <div className={styles.sidebar}>
                         <div className={styles.sidebarCard}>
                             <h3 className={styles.sidebarTitle}>
-                                {activeAnnotations.length > 0
-                                    ? `Annotations (${activeAnnotations.length})`
-                                    : "Annotations"}
+                                {activeAnnotations.length > 0 ? `Annotations (${activeAnnotations.length})` : "Annotations"}
                             </h3>
 
-                            {activeAnnotations.length > 0 ? (
+                            {loadingAnnotations ? (
+                                <div className={styles.annotationPlaceholder}>
+                                    <p>Loading annotations...</p>
+                                </div>
+                            ) : activeAnnotations.length > 0 ? (
                                 <div className={styles.annotationsList}>
                                     {activeAnnotations.map((ann) => (
-                                        <div
-                                            key={ann.id}
-                                            className={styles.annotationCard}
-                                        >
+                                        <div key={ann.id} className={styles.annotationCard}>
                                             <div className={styles.annotationQuote}>
                                                 "{lyricsText.slice(ann.from, ann.to)}"
                                             </div>
@@ -385,7 +323,7 @@ const LyricsView = () => {
                             ) : (
                                 <div className={styles.annotationPlaceholder}>
                                     <span className={styles.placeholderIcon}>💬</span>
-                                    <p>Click on highlighted text to view or add annotations</p>
+                                    <p>Click highlighted text to view or add annotations</p>
                                 </div>
                             )}
                         </div>
@@ -393,7 +331,6 @@ const LyricsView = () => {
                 </div>
             </div>
 
-            {/* FLOATING ADD BUTTON */}
             {selectionState && (
                 <button
                     className={styles.addBtn}
@@ -409,7 +346,6 @@ const LyricsView = () => {
                 </button>
             )}
 
-            {/* CREATE MODAL */}
             {isCreateModalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setIsCreateModalOpen(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -428,18 +364,10 @@ const LyricsView = () => {
                                 rows={5}
                             />
                             <div className={styles.modalActions}>
-                                <button
-                                    type="button"
-                                    className={styles.btnGhost}
-                                    onClick={() => setIsCreateModalOpen(false)}
-                                >
+                                <button type="button" className={styles.btnGhost} onClick={() => setIsCreateModalOpen(false)}>
                                     Cancel
                                 </button>
-                                <button
-                                    type="submit"
-                                    className={styles.btnPrimary}
-                                    disabled={!newAnnotationText.trim()}
-                                >
+                                <button type="submit" className={styles.btnPrimary} disabled={!newAnnotationText.trim()}>
                                     Save Annotation
                                 </button>
                             </div>

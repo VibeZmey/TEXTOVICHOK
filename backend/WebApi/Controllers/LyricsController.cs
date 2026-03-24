@@ -30,7 +30,7 @@ public class LyricsController(
     /// </summary>
     [AllowAnonymous]
     [HttpGet("{id:guid}/annotations")]
-    public async Task<ActionResult<List<Annotation>>> GetLyricsByAnnotationId([FromQuery] Guid id)
+    public async Task<ActionResult<List<Annotation>>> GetLyricsByAnnotationId([FromRoute] Guid id)
     {
         return Ok(await annotationRepository.GetAnnotationsByLyricsId(id));
     }

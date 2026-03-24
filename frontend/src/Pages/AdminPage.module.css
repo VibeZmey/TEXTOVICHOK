@@ -297,6 +297,10 @@
     background: rgba(47, 143, 124, 0.2);
     color: #2f8f7c;
 }
+.statusBadge.rejected {
+    background: rgba(255, 51, 102, 0.2);
+    color: #ff3366;
+}
 
 .userActions {
     display: flex;

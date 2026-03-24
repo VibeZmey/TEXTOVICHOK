@@ -1,6 +1,19 @@
 ﻿import axiosInstance from "./axiosInstance";
 import { ENDPOINTS } from "./endpoints";
 
+const toFormData = (data) => {
+    if (data instanceof FormData) return data;
+
+    const formData = new FormData();
+    Object.keys(data || {}).forEach((key) => {
+        const value = data[key];
+        if (value !== null && value !== undefined) {
+            formData.append(key, value);
+        }
+    });
+    return formData;
+};
+
 // ============ AUTH ============
 export const authService = {
   login: (credentials) => axiosInstance.post(ENDPOINTS.AUTH.LOGIN, credentials),
@@ -16,17 +29,10 @@ export const userService = {
   getProfile: () => axiosInstance.get(ENDPOINTS.USERS.PROFILE),
   getUserById: (id) => axiosInstance.get(ENDPOINTS.USERS.BY_ID(id)),
   getAllUsers: () => axiosInstance.get(ENDPOINTS.USERS.ALL),
-  updateUser: (id, data) => {
-    const formData = new FormData();
-    Object.keys(data).forEach((key) => {
-      if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key]);
-      }
-    });
-    return axiosInstance.patch(ENDPOINTS.USERS.UPDATE(id), formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-  },
+    updateUser: (id, data) => {
+        const formData = toFormData(data);
+        return axiosInstance.patch(ENDPOINTS.USERS.UPDATE(id), formData); // без headers
+    },
   blockUser: (id) => axiosInstance.patch(ENDPOINTS.USERS.BLOCK(id)),
   getUserAlbums: (id) => axiosInstance.get(ENDPOINTS.USERS.ALBUMS(id)),
   getUserAnnotations: (id) => axiosInstance.get(ENDPOINTS.USERS.ANNOTATIONS(id)),
@@ -36,28 +42,14 @@ export const userService = {
 export const albumService = {
   getAll: () => axiosInstance.get(ENDPOINTS.ALBUMS.GET_ALL),
   getById: (id) => axiosInstance.get(ENDPOINTS.ALBUMS.BY_ID(id)),
-  create: (data) => {
-    const formData = new FormData();
-    Object.keys(data).forEach((key) => {
-      if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key]);
-      }
-    });
-    return axiosInstance.post(ENDPOINTS.ALBUMS.GET_ALL, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-  },
-  update: (id, data) => {
-    const formData = new FormData();
-    Object.keys(data).forEach((key) => {
-      if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key]);
-      }
-    });
-    return axiosInstance.patch(ENDPOINTS.ALBUMS.UPDATE(id), formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-  },
+    create: (data) => {
+        const formData = toFormData(data);
+        return axiosInstance.post(ENDPOINTS.ALBUMS.GET_ALL, formData); // без headers
+    },
+    update: (id, data) => {
+        const formData = toFormData(data);
+        return axiosInstance.patch(ENDPOINTS.ALBUMS.UPDATE(id), formData); // без headers
+    },
   delete: (id) => axiosInstance.delete(ENDPOINTS.ALBUMS.DELETE(id)),
   getLyrics: (id) => axiosInstance.get(ENDPOINTS.ALBUMS.LYRICS(id)),
 };

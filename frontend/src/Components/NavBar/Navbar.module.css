@@ -16,6 +16,9 @@
     gap: 16px;
     cursor: pointer;
 }
+.navLeft {
+    color: #33a568;
+}
 
 .navLink {
     color: #b8c2cc;
@@ -25,13 +28,13 @@
 }
 
 .navLink:hover {
-    color: #3498db;
+    color: rgba(170, 44, 75, 0.98);
 }
 
 .logoutBtn {
     background: transparent;
-    border: 1px solid #e74c3c;
-    color: #e74c3c;
+    color: #ff6b8a;
+    border: 1px solid rgba(255, 107, 138, 0.3);
     padding: 6px 16px;
     border-radius: 6px;
     cursor: pointer;
@@ -40,6 +43,7 @@
 }
 
 .logoutBtn:hover {
-    background: #e74c3c;
-    color: white;
+    background: rgba(255, 107, 138, 0.1);
+    border-color: #ff6b8a;
+    color: #ff6b8a;
 }

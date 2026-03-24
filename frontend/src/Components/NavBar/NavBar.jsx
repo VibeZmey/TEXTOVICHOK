@@ -16,7 +16,7 @@ const Navbar = () => {
     return (
         <nav className={styles.navbar}>
             <div className={styles.navLeft} onClick={() => navigate("/home")}>
-                Home
+                TEXTOVICHEK
             </div>
 
             <SearchBar
@@ -27,7 +27,7 @@ const Navbar = () => {
             <div className={styles.navRight}>
                 {isAuthenticated ? (
                     <>
-                        {user?.role?.name === "Admin" && (
+                        {user?.role !== "user" && user?.role === "Admin" && (
                             <Link
                                 to="/admin"
                                 className={styles.navLink}
@@ -37,8 +37,10 @@ const Navbar = () => {
                             </Link>
                         )}
 
+
+
                         <Link to="/profile" className={styles.navLink}>
-                            {user?.login || "Profile"}
+                            {"Profile"}
                         </Link>
 
                         <button
@@ -52,7 +54,7 @@ const Navbar = () => {
                 ) : (
                     <Link
                         to="/login"
-                        state={{ from: location.pathname }} // ← Запоминаем, откуда пришли
+                        state={{ from: location.pathname }}
                         className={styles.navLink}
                     >
                         Sign In

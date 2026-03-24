@@ -1,70 +1,92 @@
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import SearchBar from "../Components/SearchBar/SearchBar.jsx";
 import styles from "./AlbumPage.module.css";
-
-const STORAGE_KEY = "mock_user_albums";
-const albumsMap = {
-    "1": {
-        id: "1",
-        name: "After Hours",
-        artist: "The Weeknd",
-        year: 2020,
-        description: "Best-selling album",
-        coverUrl: "",
-        songs: [
-            { id: "1", name: "Alone Again" },
-            { id: "2", name: "Blinding Lights" },
-            { id: "3", name: "Save Your Tears" },
-            { id: "4", name: "In Your Eyes" },
-        ],
-    },
-    "2": {
-        id: "2",
-        name: "DAMN.",
-        artist: "Kendrick Lamar",
-        year: 2017,
-        description: "Pulitzer Prize winner",
-        coverUrl: "",
-        songs: [
-            { id: "5", name: "DNA." },
-            { id: "6", name: "HUMBLE." },
-            { id: "7", name: "LOVE." },
-        ],
-    },
-};
+import { albumService } from "../api/apiService";
+import Navbar from "../Components/NavBar/NavBar.jsx";
 
 const AlbumPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    let album = null;
-    try {
-        const userAlbums = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-        album = userAlbums.find((a) => a.id === id);
-    } catch {}
+    const [album, setAlbum] = useState(null);
+    const [tracks, setTracks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    if (!album && albumsMap[id]) album = albumsMap[id];
-    if (!album) album = { id, name: "Unknown Album", description: "", coverImage: "", songs: [] };
+    useEffect(() => {
+        if (!id) return;
+
+        const loadAlbumPage = async () => {
+            setLoading(true);
+            setError("");
+
+            try {
+                // 1) Берем альбом из общего списка (без GET /albums/:id)
+                const albumsRes = await albumService.getAll();
+                const allAlbums = Array.isArray(albumsRes?.data) ? albumsRes.data : [];
+                const currentAlbum = allAlbums.find((a) => String(a.id) === String(id)) || null;
+                setAlbum(currentAlbum);
+
+                // 2) Треки альбома отдельным эндпоинтом
+                const lyricsRes = await albumService.getLyrics(id);
+                setTracks(Array.isArray(lyricsRes?.data) ? lyricsRes.data : []);
+            } catch (err) {
+                console.error("Failed to load album page:", err?.response?.data || err);
+                setError("Failed to load album");
+                setAlbum(null);
+                setTracks([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAlbumPage();
+
+    }, [id]);
+
+    const load = async () => {
+        const res = await albumService.getLyrics(albumId);
+        console.log("getLyrics response:", res);
+        console.log("getLyrics data:", res.data);
+    };
+
+    load();
+
+    const normalizedAlbum = useMemo(() => {
+        if (!album) {
+            return {
+                id,
+                name: "Unknown Album",
+                artist: "Unknown Artist",
+                year: "N/A",
+                description: "",
+                coverImage: "",
+                genres: [],
+            };
+        }
+
+        return {
+            ...album,
+            name: album.name || album.title || "Unknown Album",
+            artist: album.artist || "Unknown Artist",
+            year: album.year || "N/A",
+            description: album.description || "",
+            coverImage: album.coverImage || album.coverUrl || "",
+            genres: Array.isArray(album.genres) ? album.genres : [],
+        };
+    }, [album, id]);
 
     return (
         <div className={styles.page}>
-            {/* NAVBAR */}
-            <div className={styles.navbar}>
-                <Link to="/home" className={styles.navLeft}>Home</Link>
-                <SearchBar
-                    placeholder="Search lyrics or artists"
-                    onSearch={(query) => console.log(query)}
-                />
-                <Link className={styles.navRight} to="/profile">Profile</Link>
-            </div>
+            <Navbar/>
 
-            {/* HERO SECTION WITH ALBUM INFO */}
             <div className={styles.albumHero}>
                 <div className={styles.heroContent}>
                     <div className={styles.heroAccent} />
                     <div className={styles.albumCoverLarge}>
-                        {album.coverImage ? (
-                            <img src={album.coverImage} alt={album.name} className={styles.coverImage} />
+                        {normalizedAlbum.coverImage ? (
+                            <img src={normalizedAlbum.coverImage} alt={normalizedAlbum.name} className={styles.coverImage} />
                         ) : (
                             <div className={styles.coverPlaceholder}>
                                 <span className={styles.coverIcon}>🎵</span>
@@ -74,38 +96,42 @@ const AlbumPage = () => {
                     </div>
                 </div>
                 <div className={styles.albumHeroInfo}>
-                    <h1 className={styles.albumTitle}>{album.name || album.title}</h1>
+                    <h1 className={styles.albumTitle}>{normalizedAlbum.name}</h1>
                     <div className={styles.albumMeta}>
-                        <span className={styles.artistName}>{album.artist || "Unknown Artist"}</span>
+                        <span className={styles.artistName}>{normalizedAlbum.artist}</span>
                     </div>
                 </div>
             </div>
 
-            {/* MAIN CONTENT */}
             <div className={styles.contentWrapper}>
-                {/* SECTION TITLE */}
                 <div className={styles.sectionHeader}>
                     <h2 className={styles.sectionTitle}>Tracklist</h2>
                 </div>
 
-                {/* TWO COLUMNS */}
                 <div className={styles.columnsGrid}>
-                    {/* LEFT COLUMN - TRACKS */}
                     <div className={styles.column}>
                         <div className={styles.trackList}>
-                            {album.songs && album.songs.length ? (
-                                album.songs.map((track, index) => (
+                            {loading ? (
+                                <div className={styles.emptyState}>Loading tracks...</div>
+                            ) : error ? (
+                                <div className={styles.emptyState}>{error}</div>
+                            ) : tracks.length > 0 ? (
+                                tracks.map((track, index) => (
                                     <button
                                         key={track.id}
                                         className={styles.trackItem}
-                                        onClick={() => navigate(`/song/${track.id}`)}
+                                        onClick={() =>
+                                            navigate(`/song/${track.id}`, {
+                                                state: { track, album: normalizedAlbum }
+                                            })
+                                        }
                                     >
                                         <span className={styles.trackIndex}>{index + 1}</span>
                                         <div className={styles.trackInfo}>
-                                            <span className={styles.trackName}>{track.name || track.title}</span>
-                                            <span className={styles.trackArtist}>{album.artist || "Unknown"}</span>
+                                            <span className={styles.trackName}>{track.name || track.title || "Untitled"}</span>
+                                            <span className={styles.trackArtist}>{normalizedAlbum.artist}</span>
                                         </div>
-                                        <span className={styles.trackDuration}>--:--</span>
+                                        <span className={styles.trackDuration}>{track.duration || "--:--"}</span>
                                     </button>
                                 ))
                             ) : (
@@ -117,16 +143,14 @@ const AlbumPage = () => {
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN - SIDEBAR */}
                     <div className={styles.sidebar}>
-                        {/* ALBUM INFO CARD */}
                         <div className={styles.sidebarCard}>
                             <h3 className={styles.sidebarTitle}>About Album</h3>
 
-                            {album.description && (
+                            {normalizedAlbum.description && (
                                 <div className={styles.infoBlock}>
                                     <span className={styles.infoLabel}>Description</span>
-                                    <p className={styles.infoText}>{album.description}</p>
+                                    <p className={styles.infoText}>{normalizedAlbum.description}</p>
                                 </div>
                             )}
 
@@ -134,25 +158,23 @@ const AlbumPage = () => {
                                 <span className={styles.infoLabel}>Release Info</span>
                                 <div className={styles.infoRow}>
                                     <span className={styles.infoLabelSmall}>Year</span>
-                                    <span className={styles.infoValue}>{album.year || "N/A"}</span>
+                                    <span className={styles.infoValue}>{normalizedAlbum.year}</span>
                                 </div>
-                                {album.artist && (
-                                    <div className={styles.infoRow}>
-                                        <span className={styles.infoLabelSmall}>Artist</span>
-                                        <span className={styles.infoValue}>{album.artist}</span>
-                                    </div>
-                                )}
+                                <div className={styles.infoRow}>
+                                    <span className={styles.infoLabelSmall}>Artist</span>
+                                    <span className={styles.infoValue}>{normalizedAlbum.artist}</span>
+                                </div>
                                 <div className={styles.infoRow}>
                                     <span className={styles.infoLabelSmall}>Tracks</span>
-                                    <span className={styles.infoValue}>{album.songs?.length || 0}</span>
+                                    <span className={styles.infoValue}>{tracks.length}</span>
                                 </div>
                             </div>
 
-                            {album.genres && album.genres.length > 0 && (
+                            {normalizedAlbum.genres.length > 0 && (
                                 <div className={styles.infoBlock}>
                                     <span className={styles.infoLabel}>Genres</span>
                                     <div className={styles.genreTags}>
-                                        {album.genres.map((genre, idx) => (
+                                        {normalizedAlbum.genres.map((genre, idx) => (
                                             <span key={idx} className={styles.genreTag}>{genre}</span>
                                         ))}
                                     </div>

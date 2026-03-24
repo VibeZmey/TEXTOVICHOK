@@ -1,599 +1,588 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import styles from "./Profile.module.css";
 import SearchBar from "../Components/SearchBar/SearchBar";
-import { getCurrentUser, CURRENT_USER_ID } from "../data/mockData";
+import { useAuth } from "../context/AuthContext";
+import { userService, albumService, annotationService, lyricsService } from "../api/apiService";
+import Navbar from "../Components/NavBar/NavBar.jsx";
 
-const STORAGE_KEY = "mock_user_albums";
-const emptyAlbum = { name: "", artist: "", coverImage: "", description: "" };
-const emptySong = { name: "", year: "", description: "", text: "" };
+const CDN_BASE = "http://localhost:9000";
+
+const emptyAlbumState = {
+    name: "",
+    description: "",
+    year: new Date().getFullYear(),
+    coverFile: null,
+};
+
+const emptySongState = {
+    name: "",
+    year: new Date().getFullYear(),
+    description: "",
+    text: "",
+};
 
 const ProfilePage = () => {
     const navigate = useNavigate();
-    const mockUser = getCurrentUser();
+    const { user } = useAuth();
+    const userId = user?.id;
 
-    const [albums, setAlbums] = useState(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            return raw ? JSON.parse(raw) : [];
-        } catch {
-            return [];
-        }
-    });
+    // profile
+    const [profile, setProfile] = useState(null);
+    const [loadingProfile, setLoadingProfile] = useState(true);
 
-    // User's annotations state
+    // edit profile modal
+    const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+    const [editLogin, setEditLogin] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [editAvatarFile, setEditAvatarFile] = useState(null);
+    const [savingProfile, setSavingProfile] = useState(false);
+
+    // albums/annotations
+    const [albums, setAlbums] = useState([]);
     const [userAnnotations, setUserAnnotations] = useState([]);
+    const [loadingAlbums, setLoadingAlbums] = useState(true);
     const [loadingAnnotations, setLoadingAnnotations] = useState(true);
-    const [showAllAnnotations, setShowAllAnnotations] = useState(false); // ← Состояние для кнопки Show all
 
-    // ----- MODALS -----
+    // modals (create/delete)
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState(null);
-    const [createStep, setCreateStep] = useState('album');
+    const [deleteTarget, setDeleteTarget] = useState(null); // { type, id }
 
-    // Create flow state
-    const [albumDraft, setAlbumDraft] = useState(emptyAlbum);
-    const [songDraft, setSongDraft] = useState(emptySong);
+    // create album wizard
+    const [showSongStep, setShowSongStep] = useState(false);
+    const [albumDraft, setAlbumDraft] = useState(emptyAlbumState);
     const [songsDraft, setSongsDraft] = useState([]);
+    const [songDraft, setSongDraft] = useState(emptySongState);
 
-    // Edit flow state
-    const [editAlbumId, setEditAlbumId] = useState(null);
-    const [editAlbumDraft, setEditAlbumDraft] = useState(emptyAlbum);
-    const [editSongsDraft, setEditSongsDraft] = useState([]);
-    const [editSongForm, setEditSongForm] = useState(emptySong);
-    const [isAddingSong, setIsAddingSong] = useState(false);
+    // annotations UI
+    const [showAllAnnotations, setShowAllAnnotations] = useState(false);
 
-    const [deleteAnnotationId, setDeleteAnnotationId] = useState(null);
+    // cache: lyricsId -> lyricsDto
+    const [lyricsById, setLyricsById] = useState({});
 
-    // ===== DELETE ANNOTATION =====
-    const confirmDeleteAnnotation = (annotationId) => {
-        setDeleteAnnotationId(annotationId);
-        setIsDeleteConfirmOpen(true);
-    };
+    const avatarUrl = useMemo(() => {
+        const imageUrl = profile?.imageUrl; // <— предполагаем это поле, как у альбома
+        if (!imageUrl) return "";
+        return `${CDN_BASE}/${imageUrl}`;
+    }, [profile?.imageUrl]);
 
-    const executeDeleteAnnotation = () => {
-        if (!deleteAnnotationId) return;
-        // Удаляем из всех ключей аннотаций в localStorage
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key?.startsWith("mock_annotations_")) {
-                try {
-                    const raw = localStorage.getItem(key);
-                    const annotations = raw ? JSON.parse(raw) : [];
-                    const filtered = annotations.filter((a) => a.id !== deleteAnnotationId);
-                    localStorage.setItem(key, JSON.stringify(filtered));
-                } catch {}
-            }
+    const visibleLogin = profile?.login || user?.login || "unknown";
+    const visibleDescription = profile?.description ?? "No description.";
+
+    const loadProfile = async () => {
+        if (!userId) return;
+        setLoadingProfile(true);
+        try {
+            const res = await userService.getProfile();
+            const p = res?.data || null;
+            setProfile(p);
+
+            setEditLogin(p?.login || "");
+            setEditDescription(p?.description || "");
+            setEditAvatarFile(null);
+        } catch (e) {
+            console.error("Failed to load profile:", e?.response?.data || e);
+            setProfile(null);
+        } finally {
+            setLoadingProfile(false);
         }
-        setUserAnnotations((prev) => prev.filter((a) => a.id !== deleteAnnotationId));
-        closeAllModals();
     };
 
-    const canContinueAlbum = useMemo(() => albumDraft.name.trim().length > 0, [albumDraft.name]);
-    const canAddSong = useMemo(
-        () => songDraft.name.trim() && songDraft.text.trim(),
-        [songDraft]
-    );
-    const canSaveEditSong = useMemo(
-        () => editSongForm.name.trim() && editSongForm.year && editSongForm.text.trim(),
-        [editSongForm]
-    );
+    const loadLists = async () => {
+        if (!userId) return;
+
+        setLoadingAlbums(true);
+        setLoadingAnnotations(true);
+
+        try {
+            const [albumsRes, annsRes] = await Promise.all([
+                userService.getUserAlbums(userId),
+                userService.getUserAnnotations(userId),
+            ]);
+
+            setAlbums(Array.isArray(albumsRes?.data) ? albumsRes.data : []);
+            setUserAnnotations(Array.isArray(annsRes?.data) ? annsRes.data : []);
+        } catch (e) {
+            console.error("Failed to load lists:", e?.response?.data || e);
+            setAlbums([]);
+            setUserAnnotations([]);
+        } finally {
+            setLoadingAlbums(false);
+            setLoadingAnnotations(false);
+        }
+    };
 
     useEffect(() => {
-        const loadUserAnnotations = () => {
-            setLoadingAnnotations(true);
-            try {
-                const allAnnotations = [];
+        if (!userId) return;
+        loadProfile();
+        loadLists();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId]);
 
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key?.startsWith("mock_annotations_")) {
-                        const raw = localStorage.getItem(key);
-                        const annotations = raw ? JSON.parse(raw) : [];
-                        if (Array.isArray(annotations)) {
-                            allAnnotations.push(...annotations);
-                        }
-                    }
-                }
-
-                const userAnns = allAnnotations.filter(
-                    (ann) => ann.userId === CURRENT_USER_ID
-                );
-
-                const annotationsWithLyrics = userAnns.map((ann) => {
-                    let foundSong = null;
-                    let foundAlbum = null;
-
-                    for (const album of albums) {
-                        const song = album.songs?.find((s) => {
-                            return s.text && ann.text && s.text.includes(ann.text.slice(0, 50));
-                        });
-                        if (song) {
-                            foundSong = song;
-                            foundAlbum = album;
-                            break;
-                        }
-                    }
-
-                    return {
-                        ...ann,
-                        songName: foundSong?.name || "Unknown Song",
-                        albumName: foundAlbum?.name || "Unknown Album",
-                        albumId: foundAlbum?.id || null,
-                        lyricSnippet: ann.text?.slice(0, 100) + (ann.text?.length > 100 ? "..." : ""),
-                        status: ann.isVerified === true
-                            ? "approved"
-                            : (ann.status || "pending"),
-                        createdAt: ann.createdAt || new Date().toISOString(),
-                    };
-                });
-
-                setUserAnnotations(annotationsWithLyrics);
-            } catch (error) {
-                console.error("Failed to load annotations:", error);
-                setUserAnnotations([]);
-            } finally {
-                setLoadingAnnotations(false);
-            }
-        };
-        loadUserAnnotations();
-
-        const handleStorageChange = (e) => {
-            if (e.key?.startsWith("mock_annotations_") || e.type === "storage-sync") {
-                loadUserAnnotations();
-            }
-        };
-        window.addEventListener("storage", handleStorageChange);
-        window.addEventListener("storage-sync", handleStorageChange);
-
-        return () => {
-            window.removeEventListener("storage", handleStorageChange);
-            window.removeEventListener("storage-sync", handleStorageChange);
-        };
-    }, [albums]);
-
-    const handleAlbumCover = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            setAlbumDraft((p) => ({ ...p, coverImage: evt.target.result }));
-        };
-        reader.readAsDataURL(file);
+    // ===== Edit profile =====
+    const handleOpenEditProfile = () => {
+        setIsEditProfileOpen(true);
+        setEditLogin(profile?.login || user?.login || "");
+        setEditDescription(profile?.description || "");
+        setEditAvatarFile(null);
     };
 
-    const handleEditAlbumCover = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            setEditAlbumDraft((p) => ({ ...p, coverImage: evt.target.result }));
-        };
-        reader.readAsDataURL(file);
+    const handleSaveProfile = async () => {
+        if (!userId) return;
+
+        const login = editLogin.trim();
+        if (!login) {
+            alert("Login is required");
+            return;
+        }
+
+        setSavingProfile(true);
+        try {
+            // ВАЖНО: ключи как в твоём swagger-подходе с альбомом: PascalCase
+            // Если бэк ждёт другие названия — скажи, подстрою.
+            const fd = new FormData();
+            fd.append("Login", login);
+            fd.append("Description", editDescription || "");
+            if (editAvatarFile) fd.append("Image", editAvatarFile);
+
+            await userService.updateUser(userId, fd);
+
+            setIsEditProfileOpen(false);
+            await loadProfile();
+        } catch (e) {
+            console.error("Failed to update profile:", e?.response?.data || e);
+            alert("Failed to update profile");
+        } finally {
+            setSavingProfile(false);
+        }
     };
 
-    const persistAlbums = (next) => {
-        setAlbums(next);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    };
+    // ===== Create album =====
+    const canContinueAlbum = albumDraft.name.trim().length > 0;
 
-    // ===== CREATE FLOW =====
-    const openCreateFlow = () => {
-        setAlbumDraft(emptyAlbum);
-        setSongDraft(emptySong);
+    const handleOpenCreate = () => {
+        setAlbumDraft(emptyAlbumState);
         setSongsDraft([]);
-        setCreateStep('album');
+        setSongDraft(emptySongState);
+        setShowSongStep(false);
         setIsCreateModalOpen(true);
     };
 
-    const closeAllModals = () => {
-        setIsCreateModalOpen(false);
-        setCreateStep('album');
-        setIsEditModalOpen(false);
-        setIsDeleteConfirmOpen(false);
-        setDeleteTarget(null);
-        setEditAlbumId(null);
-        setEditAlbumDraft(emptyAlbum);
-        setEditSongsDraft([]);
-        setEditSongForm(emptySong);
-        setIsAddingSong(false);
+    const canAddSong = () => songDraft.name.trim() && songDraft.text.trim();
+
+    const handleAddSong = () => {
+        if (!canAddSong()) return;
+        setSongsDraft((prev) => [
+            ...prev,
+            { ...songDraft, year: Number(songDraft.year) || new Date().getFullYear() },
+        ]);
+        setSongDraft(emptySongState);
     };
 
-    const goToSongStep = () => {
-        if (!canContinueAlbum) return;
-        setCreateStep('songs');
-    };
+    const handleRemoveSong = (i) => setSongsDraft((prev) => prev.filter((_, idx) => idx !== i));
 
-    const addSongToDraft = () => {
-        if (!canAddSong) return;
-        const newSong = {
-            id: `song-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            ...songDraft,
-            year: Number(songDraft.year),
-        };
-        setSongsDraft((prev) => [...prev, newSong]);
-        setSongDraft(emptySong);
-    };
-
-    const finishCreateAlbum = () => {
-        let finalSongs = [...songsDraft];
-        if (canAddSong) {
-            finalSongs.push({
-                id: `song-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                ...songDraft,
-                year: Number(songDraft.year),
-            });
+    const handleFinishCreate = async () => {
+        if (!albumDraft.name.trim() || songsDraft.length === 0) {
+            alert("Album name and at least 1 song required!");
+            return;
         }
-        if (!finalSongs.length) return;
 
-        const newAlbum = {
-            id: `album-${Date.now()}`,
-            name: albumDraft.name.trim(),
-            artist: albumDraft.artist.trim(),
-            coverImage: albumDraft.coverImage,
-            description: albumDraft.description.trim(),
-            year: finalSongs[0]?.year || new Date().getFullYear(),
-            songs: finalSongs,
-            createdAt: new Date().toISOString(),
-            userId: CURRENT_USER_ID
-        };
+        try {
+            const fd = new FormData();
+            fd.append("Name", albumDraft.name);
+            fd.append("Description", albumDraft.description || "");
+            fd.append("UserId", userId);
+            fd.append("Year", String(songsDraft[0].year || new Date().getFullYear()));
+            if (albumDraft.coverFile) fd.append("Image", albumDraft.coverFile);
 
-        const next = [newAlbum, ...albums];
-        persistAlbums(next);
-        closeAllModals();
+            const albumRes = await albumService.create(fd);
+            const album = albumRes.data;
+
+            for (const [i, song] of songsDraft.entries()) {
+                await lyricsService.create({
+                    name: song.name,
+                    albumId: album.id,
+                    orderIndex: i,
+                    text: song.text,
+                    duration: 0,
+                    description: song.description || "",
+                });
+            }
+
+            console.log(profile);
+
+            await loadLists();
+            handleCloseModals();
+        } catch (err) {
+            if (err?.response) {
+                console.error(err.response.data);
+                alert(JSON.stringify(err.response.data.errors || err.response.data, null, 2));
+            } else {
+                alert("Ошибка создания альбома!");
+            }
+        }
     };
 
-    // ===== EDIT FLOW =====
-    const openEditAlbum = (album) => {
-        setEditAlbumId(album.id);
-        setEditAlbumDraft({
-            name: album.name,
-            artist: album.artist || "",
-            coverImage: album.coverImage,
-            description: album.description,
-        });
-        setEditSongsDraft(album.songs || []);
-        setIsEditModalOpen(true);
-    };
-
-    const addSongToEditDraft = () => {
-        if (!canSaveEditSong) return;
-        const newSong = {
-            id: `song-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            ...editSongForm,
-            year: Number(editSongForm.year),
-        };
-        setEditSongsDraft((prev) => [...prev, newSong]);
-        setEditSongForm(emptySong);
-        setIsAddingSong(false);
-    };
-
-    const removeSongFromEditDraft = (songId) => {
-        setEditSongsDraft((prev) => prev.filter((s) => s.id !== songId));
-    };
-
-    const saveEditAlbum = () => {
-        if (!editAlbumDraft.name.trim()) return;
-        if (editSongsDraft.length === 0) return;
-
-        const updated = albums.map((a) =>
-            a.id === editAlbumId
-                ? {
-                    ...a,
-                    name: editAlbumDraft.name.trim(),
-                    artist: editAlbumDraft.artist.trim(),
-                    coverImage: editAlbumDraft.coverImage,
-                    description: editAlbumDraft.description.trim(),
-                    year: editSongsDraft[0]?.year || a.year,
-                    songs: editSongsDraft,
-                }
-                : a
-        );
-        persistAlbums(updated);
-        closeAllModals();
-    };
-
-    // ===== DELETE =====
-    const confirmDelete = (albumId) => {
-        setDeleteTarget({ albumId });
+    // ===== Delete album/annotation =====
+    const handleConfirmDelete = (type, id) => {
+        setDeleteTarget({ type, id });
         setIsDeleteConfirmOpen(true);
     };
 
-    const executeDelete = () => {
+
+    const handleExecuteDelete = async () => {
         if (!deleteTarget) return;
-        const updated = albums.filter((a) => a.id !== deleteTarget.albumId);
-        persistAlbums(updated);
-        closeAllModals();
+
+        try {
+            if (deleteTarget.type === "album") {
+                await albumService.delete(deleteTarget.id);
+            } else if (deleteTarget.type === "annotation") {
+                await annotationService.delete(deleteTarget.id);
+            }
+
+            await loadLists();
+            handleCloseModals();
+        } catch (err) {
+            console.error("DELETE error full:", err);
+            console.error("DELETE error response:", err?.response?.data);
+            console.error("DELETE error request:", err?.request);
+            alert("Delete failed");
+        }
     };
 
-    // ===== ОТОБРАЖЕНИЕ АННОТАЦИЙ =====
-    const displayedAnnotations = showAllAnnotations
-        ? userAnnotations
-        : userAnnotations.slice(0, 3);
+    const handleCloseModals = () => {
+        setIsCreateModalOpen(false);
+        setShowSongStep(false);
+        setIsDeleteConfirmOpen(false);
+        setDeleteTarget(null);
 
+        setAlbumDraft(emptyAlbumState);
+        setSongDraft(emptySongState);
+        setSongsDraft([]);
+    };
+
+    // ===== Annotations display =====
+    const resolveAnnotationStatus = (ann) => {
+        if (ann.isVerified) return "approved";
+        if (ann.isRejected) return "rejected";
+        return "pending";
+    };
+
+    const displayedAnnotations = showAllAnnotations ? userAnnotations : userAnnotations.slice(0, 3);
     const hasMoreAnnotations = userAnnotations.length > 3;
+
+    const getSongNameByAnnotation = (ann) => {
+        const lyr = lyricsById[ann.lyricsId];
+        return lyr?.name || lyr?.title || "Unknown song";
+    };
+
 
     return (
         <div className={styles.page}>
             {/* NAVBAR */}
-            <div className={styles.navbar}>
-                <div className={styles.navLeft} onClick={() => navigate("/home")}>Home</div>
-                <SearchBar
-                    placeholder="Search lyrics or artists"
-                    onSearch={(query) => console.log(query)}
-                />
-                <div className={styles.navRight} onClick={() => navigate("/admin")}>Admin</div>
-                <div className={styles.navRight}>Profile</div>
-            </div>
+            <Navbar/>
 
             {/* PROFILE HEADER */}
             <div className={styles.profileHeader}>
                 <div className={styles.profileWrapper}>
                     <div className={styles.avatarContainer}>
                         <div className={styles.avatar}>
-                            <span className={styles.avatarText}>Avatar</span>
+                            {avatarUrl ? (
+                                <img className={styles.avatarImg} src={avatarUrl} alt="avatar" />
+                            ) : (
+                                <span className={styles.avatarText}>
+                  {(visibleLogin[0] || "A").toUpperCase()}
+                </span>
+                            )}
                         </div>
                     </div>
+
                     <div className={styles.profileInfo}>
                         <div className={styles.usernameRow}>
-                            <h2 className={styles.username}>@{mockUser.login}</h2>
-                            <div className={styles.badges}>
-                                <span className={styles.badge}>Artist</span>
-                                <span className={styles.badge}>Editor</span>
+                            <h2 className={styles.username}>@{visibleLogin}</h2>
+
+                            <div className={styles.userBadges}>
+                                {profile?.isArtist && <span className={styles.badgeArtist}>Artist</span>}
+                                {profile?.isEditor && <span className={styles.badgeEditor}>Editor</span>}
                             </div>
+
+                            <button
+                                className={styles.editBtnRight}
+                                onClick={handleOpenEditProfile}
+                                disabled={loadingProfile}
+                                title="Edit profile"
+                            >
+                                Edit
+                            </button>
                         </div>
-                        <p className={styles.description}>{mockUser.description}</p>
+
+                        <p className={styles.description}>
+                            {loadingProfile ? "Loading profile..." : visibleDescription}
+                        </p>
                     </div>
                 </div>
             </div>
 
             <div className={styles.contentWrapper}>
-                {/* LEFT COLUMN - USER ALBUMS */}
+                {/* LEFT COLUMN - ALBUMS */}
                 <div className={styles.column}>
                     <h3 className={styles.sectionTitle}>My albums</h3>
-                    <div className={styles.list}>
-                        {albums.length === 0 ? (
-                            <div className={styles.emptyList}>No albums yet.</div>
-                        ) : (
-                            albums.map((album) => (
+
+                    {loadingAlbums ? (
+                        <div className={styles.emptyList}>Loading albums...</div>
+                    ) : albums.length === 0 ? (
+                        <div className={styles.emptyList}>No albums yet.</div>
+                    ) : (
+                        <div className={styles.list}>
+                            {albums.map((album) => (
                                 <div
                                     key={album.id}
                                     className={styles.listItem}
                                     onClick={() => navigate(`/album/${album.id}`)}
                                 >
                                     <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
-                                        {/* Left: Cover + Info */}
                                         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                                            {album.coverImage ? (
-                                                <img src={album.coverImage} alt={album.name} className={styles.albumCover} />
+                                            {album.imageUrl ? (
+                                                <img
+                                                    src={`${CDN_BASE}/${album.imageUrl}`}
+                                                    alt={album.name}
+                                                    className={styles.albumCover}
+                                                />
+                                            ) : album.coverImage ? (
+                                                <img
+                                                    src={album.coverImage}
+                                                    alt={album.name}
+                                                    className={styles.albumCover}
+                                                />
                                             ) : (
                                                 <div className={styles.albumCoverPlaceholder} />
                                             )}
+
                                             <div style={{ minWidth: 0 }}>
                                                 <div className={styles.listItemTitle}>{album.name}</div>
-                                                <div className={styles.listItemArtist}>
-                                                    {album.songs?.length || 0} song{album.songs?.length !== 1 ? 's' : ''} • {album.year}
-                                                </div>
+                                                <div className={styles.listItemArtist}>{album.year}</div>
                                             </div>
                                         </div>
 
-                                        {/* Right: Action buttons */}
                                         <div style={{ display: "flex", gap: 8, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                                            <button className={styles.iconBtn} onClick={() => openEditAlbum(album)} title="Edit album">
-                                                ✎
-                                            </button>
-                                            <button className={styles.iconBtnDelete} onClick={() => confirmDelete(album.id)} title="Delete album">
+                                            <button
+                                                className={styles.iconBtnDelete}
+                                                onClick={() => handleConfirmDelete("album", album.id)}
+                                                title="Delete album"
+                                            >
                                                 🗑
                                             </button>
                                         </div>
                                     </div>
                                 </div>
-                            ))
-                        )}
-                    </div>
-                    <button className={styles.addLyricsButton} onClick={openCreateFlow}>+ Add</button>
+                            ))}
+                        </div>
+                    )}
+
+                    <button className={styles.addLyricsButton} onClick={handleOpenCreate}>+ Add</button>
                 </div>
 
-                {/* RIGHT COLUMN - USER'S ANNOTATIONS */}
+                {/* RIGHT COLUMN - ANNOTATIONS */}
                 <div className={styles.column}>
                     <h3 className={styles.sectionTitle}>My Annotations</h3>
-                    <div className={styles.list}>
-                        {loadingAnnotations ? (
-                            <div className={styles.emptyList}>Loading annotations...</div>
-                        ) : userAnnotations.length === 0 ? (
-                            <div className={styles.emptyList}>
-                                <span style={{ fontSize: 24, display: "block", marginBottom: 8 }}>💬</span>
-                                No annotations yet.<br/>
-                                <span style={{ fontSize: 13, color: "#667788" }}>
-                                    Go to a song and highlight text to add your first annotation!
-                                </span>
-                            </div>
-                        ) : (
-                            <>
-                                {displayedAnnotations.map((ann) => {
-                                    const status = ann.isVerified
-                                        ? "approved"
-                                        : (ann.status || "pending");
 
-                                    return (
-                                        <div
-                                            key={ann.id}
-                                            className={`${styles.annotationCard} ${styles[status]}`}
-                                            onClick={() => {
-                                                if (ann.albumId) {
-                                                    navigate(`/album/${ann.albumId}`);
-                                                }
-                                            }}
-                                            style={{ cursor: ann.albumId ? "pointer" : "default" }}
-                                        >
-                                            {/* Левая часть: контент аннотации */}
-                                            <div className={styles.annotationContent}>
-                                                {/* ← ДОБАВЛЕНО: Бейдж статуса */}
-                                                <div className={styles.annotationStatusRow}>
-                                                    <span className={`${styles.annotationStatus} ${styles[status]}`}>
-                                                        {status === "approved"}
-                                                        {status === "rejected" }
-                                                        {status}
-                                                    </span>
-                                                </div>
+                    {loadingAnnotations ? (
+                        <div className={styles.emptyList}>Loading annotations...</div>
+                    ) : userAnnotations.length === 0 ? (
+                        <div className={styles.emptyList}>
+                            <span style={{ fontSize: 24 }}>💬</span> No annotations yet.
+                        </div>
+                    ) : (
+                        <div className={styles.list}>
+                            {displayedAnnotations.map((ann) => {
+                                const status = resolveAnnotationStatus(ann);
 
-                                                <div className={styles.listItemTitle} style={{ fontSize: 14 }}>
-                                                    {ann.songName}
-                                                </div>
-                                                <div className={styles.listItemArtist} style={{ fontSize: 12, marginBottom: 6 }}>
-                                                    {ann.albumName}
-                                                </div>
+                                return (
+                                    <div key={ann.id} className={`${styles.annotationRow} ${styles[status]}`}>
+                                        {/* left: status */}
+                                        <div className={styles.annotationStatusCol}>
+                                            <span className={`${styles.annotationStatus} ${styles[status]}`}>{status}</span>
+                                        </div>
 
-                                                {/* Текст аннотации */}
-                                                <div className={styles.annotationPreview}>
-                                                    {ann.text || ann.lyricSnippet}
-                                                </div>
-
-                                                <div
-                                                    className={styles.readReview}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (ann.albumId) {
-                                                            navigate(`/album/${ann.albumId}`);
-                                                        }
-                                                    }}
-                                                >
-                                                    Read review →
-                                                </div>
+                                        {/* center: song/album/text */}
+                                        <div className={styles.annotationMainCol}>
+                                            <div className={styles.annotationText}>
+                                                {ann.text || "No annotation text"}
                                             </div>
+                                        </div>
 
-                                            {/* Правая часть: кнопка удаления */}
+                                        {/* right: delete */}
+                                        <div className={styles.annotationActionCol}>
                                             <button
                                                 className={styles.deleteAnnotationBtn}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    confirmDeleteAnnotation(ann.id);
-                                                }}
+                                                onClick={(e) => { e.stopPropagation(); handleConfirmDelete("annotation", ann.id); }}
                                                 title="Delete annotation"
                                             >
                                                 🗑
                                             </button>
                                         </div>
-                                    );
-                                })}
-                                {hasMoreAnnotations && (
-                                    <button
-                                        className={styles.showAllButton}
-                                        onClick={() => setShowAllAnnotations(!showAllAnnotations)}
-                                        type="button"
-                                    >
-                                        {showAllAnnotations
-                                            ? "Show less"
-                                            : `Show all (${userAnnotations.length})`
-                                        }
-                                    </button>
-                                )}
-                            </>
-                        )}
-                    </div>
+                                    </div>
+                                );
+                            })}
+
+                            {hasMoreAnnotations && (
+                                <button
+                                    className={styles.showAllButton}
+                                    onClick={() => setShowAllAnnotations((a) => !a)}
+                                    type="button"
+                                >
+                                    {showAllAnnotations ? "Show less" : `Show all (${userAnnotations.length})`}
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* ===== MODALS ===== */}
-
-            {/* CREATE ALBUM - Step 1 */}
-            {isCreateModalOpen && createStep === 'album' && (
-                <div className={styles.modalOverlay} onClick={closeAllModals}>
+            {/* ===== EDIT PROFILE MODAL ===== */}
+            {isEditProfileOpen && (
+                <div className={styles.modalOverlay} onClick={() => !savingProfile && setIsEditProfileOpen(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <h3>Create Album</h3>
+                        <h3>Edit profile</h3>
 
-                        <input
-                            className={styles.input}
-                            placeholder="Album name *"
-                            value={albumDraft.name}
-                            onChange={(e) => setAlbumDraft((p) => ({ ...p, name: e.target.value }))}
-                        />
-
-                        <input
-                            className={styles.input}
-                            placeholder="Artist name"
-                            value={albumDraft.artist}
-                            onChange={(e) => setAlbumDraft((p) => ({ ...p, artist: e.target.value }))}
-                        />
-
-                        <div style={{ margin: "10px 0" }}>
-                            <label style={{ display: "block", marginBottom: 4, color: "#b8c2cc" }}>Cover:</label>
-                            <input type="file" accept="image/*" onChange={handleAlbumCover} />
-                            {albumDraft.coverImage && (
-                                <img src={albumDraft.coverImage} alt="cover" style={{ width: 70, height: 70, marginTop: 6, borderRadius: 8, objectFit: "cover" }} />
-                            )}
+                        <div className={styles.field}>
+                            <label className={styles.label}>Avatar</label>
+                            <input
+                                className={styles.input}
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setEditAvatarFile(e.target.files?.[0] || null)}
+                                disabled={savingProfile}
+                            />
                         </div>
 
-                        <textarea
-                            className={styles.textarea}
-                            placeholder="Album description"
-                            rows={4}
-                            value={albumDraft.description}
-                            onChange={(e) => setAlbumDraft((p) => ({ ...p, description: e.target.value }))}
-                        />
+                        <div className={styles.field}>
+                            <label className={styles.label}>Login</label>
+                            <input
+                                className={styles.input}
+                                value={editLogin}
+                                onChange={(e) => setEditLogin(e.target.value)}
+                                disabled={savingProfile}
+                            />
+                        </div>
+
+                        <div className={styles.field}>
+                            <label className={styles.label}>Description</label>
+                            <textarea
+                                className={styles.textarea}
+                                rows={4}
+                                value={editDescription}
+                                onChange={(e) => setEditDescription(e.target.value)}
+                                disabled={savingProfile}
+                            />
+                        </div>
 
                         <div className={styles.modalActions}>
-                            <button className={styles.ghost} onClick={closeAllModals}>Cancel</button>
-                            <button className={styles.primary} onClick={goToSongStep} disabled={!canContinueAlbum}>
-                                + Add Song
+                            <button className={styles.ghost} onClick={() => setIsEditProfileOpen(false)} disabled={savingProfile}>
+                                Cancel
+                            </button>
+                            <button className={styles.primary} onClick={handleSaveProfile} disabled={savingProfile}>
+                                {savingProfile ? "Saving..." : "Save"}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* CREATE ALBUM - Step 2: Add Songs */}
-            {isCreateModalOpen && createStep === 'songs' && (
-                <div className={styles.modalOverlay} onClick={closeAllModals}>
+            {/* ===== CREATE MODAL: album step 1 ===== */}
+            {isCreateModalOpen && !showSongStep && (
+                <div className={styles.modalOverlay} onClick={handleCloseModals}>
+                    <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                        <h3>Create Album</h3>
+                        <input
+                            className={styles.input}
+                            placeholder="Album name *"
+                            value={albumDraft.name}
+                            onChange={(e) => setAlbumDraft((d) => ({ ...d, name: e.target.value }))}
+                        />
+                        <textarea
+                            className={styles.textarea}
+                            placeholder="Album description"
+                            value={albumDraft.description}
+                            onChange={(e) => setAlbumDraft((d) => ({ ...d, description: e.target.value }))}
+                        />
+                        <input
+                            className={styles.input}
+                            placeholder="Album year"
+                            type="number"
+                            value={albumDraft.year}
+                            onChange={(e) => setAlbumDraft((d) => ({ ...d, year: Number(e.target.value) }))}
+                        />
+                        <input
+                            className={styles.input}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setAlbumDraft((d) => ({ ...d, coverFile: e.target.files?.[0] || null }))}
+                        />
+                        <div className={styles.modalActions}>
+                            <button className={styles.ghost} onClick={handleCloseModals}>Cancel</button>
+                            <button className={styles.primary} onClick={() => setShowSongStep(true)} disabled={!canContinueAlbum}>
+                                + Add Songs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ===== CREATE MODAL: album step 2 ===== */}
+            {isCreateModalOpen && showSongStep && (
+                <div className={styles.modalOverlay} onClick={handleCloseModals}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                         <h3>Add Songs</h3>
-                        <p style={{ opacity: 0.8, marginTop: -8 }}>Album: {albumDraft.name}</p>
-
                         <input
                             className={styles.input}
                             placeholder="Song name *"
                             value={songDraft.name}
-                            onChange={(e) => setSongDraft((p) => ({ ...p, name: e.target.value }))}
+                            onChange={(e) => setSongDraft((s) => ({ ...s, name: e.target.value }))}
                         />
-                        <textarea
-                            className={styles.textarea}
-                            placeholder="Song description"
-                            rows={3}
-                            value={songDraft.description}
-                            onChange={(e) => setSongDraft((p) => ({ ...p, description: e.target.value }))}
+                        <input
+                            className={styles.input}
+                            placeholder="Year"
+                            type="number"
+                            value={songDraft.year}
+                            onChange={(e) => setSongDraft((s) => ({ ...s, year: e.target.value }))}
                         />
                         <textarea
                             className={styles.textarea}
                             placeholder="Lyrics text *"
-                            rows={6}
                             value={songDraft.text}
-                            onChange={(e) => setSongDraft((p) => ({ ...p, text: e.target.value }))}
+                            onChange={(e) => setSongDraft((s) => ({ ...s, text: e.target.value }))}
+                        />
+                        <textarea
+                            className={styles.textarea}
+                            placeholder="Song description"
+                            value={songDraft.description}
+                            onChange={(e) => setSongDraft((s) => ({ ...s, description: e.target.value }))}
                         />
 
                         <div style={{ marginTop: 8, opacity: 0.8 }}>Added songs: {songsDraft.length}</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5, margin: "10px 0" }}>
-                            {songsDraft.map((song, idx) => (
-                                <div key={song.id} style={{ color: "#b8c2cc", fontSize: 15 }}>
-                                    {idx + 1}. <b>{song.name}</b> ({song.year})
+                        <div style={{ marginBottom: 8 }}>
+                            {songsDraft.map((song, i) => (
+                                <div key={i} style={{ color: "#888", display: "flex", alignItems: "center", gap: 6 }}>
+                                    {i + 1}. <b>{song.name}</b> ({song.year}){" "}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveSong(i)}
+                                        style={{ color: "#e66", border: "none", background: "none", cursor: "pointer" }}
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
                             ))}
                         </div>
 
                         <div className={styles.modalActions}>
-                            <button className={styles.ghost} onClick={closeAllModals}>Cancel</button>
-                            <button className={styles.ghost} onClick={addSongToDraft} disabled={!canAddSong}>
+                            <button className={styles.ghost} onClick={handleCloseModals}>Cancel</button>
+                            <button className={styles.ghost} onClick={handleAddSong} disabled={!canAddSong()}>
                                 + Add another
                             </button>
-                            <button
-                                className={styles.primary}
-                                onClick={finishCreateAlbum}
-                                disabled={songsDraft.length === 0 && !canAddSong}
-                                title={songsDraft.length === 0 && !canAddSong
-                                    ? "Add at least one song to finish"
-                                    : "Finish creating album"}
-                            >
+                            <button className={styles.primary} onClick={handleFinishCreate} disabled={songsDraft.length === 0}>
                                 Finish
                             </button>
                         </div>
@@ -601,185 +590,19 @@ const ProfilePage = () => {
                 </div>
             )}
 
-            {/* EDIT ALBUM + SONGS MODAL */}
-            {isEditModalOpen && (
-                <div className={styles.modalOverlay} onClick={closeAllModals}>
-                    <div className={`${styles.modal} ${styles.modalLarge}`} onClick={(e) => e.stopPropagation()}>
-                        <h3>Edit Album</h3>
-
-                        {/* Album info section */}
-                        <div className={styles.editSection}>
-                            <h4 style={{ margin: "0 0 12px", color: "#fff", fontSize: 15 }}>Album Details</h4>
-                            <input
-                                className={styles.input}
-                                placeholder="Album name *"
-                                value={editAlbumDraft.name}
-                                onChange={(e) => setEditAlbumDraft((p) => ({ ...p, name: e.target.value }))}
-                            />
-                            <input
-                                className={styles.input}
-                                placeholder="Artist name"
-                                value={editAlbumDraft.artist}
-                                onChange={(e) => setEditAlbumDraft((p) => ({ ...p, artist: e.target.value }))}
-                            />
-                            <div style={{ margin: "10px 0" }}>
-                                <label style={{ display: "block", marginBottom: 4, color: "#b8c2cc" }}>Cover:</label>
-                                <input type="file" accept="image/*" onChange={handleEditAlbumCover} />
-                                {editAlbumDraft.coverImage && (
-                                    <img src={editAlbumDraft.coverImage} alt="cover" style={{ width: 70, height: 70, marginTop: 6, borderRadius: 8, objectFit: "cover" }} />
-                                )}
-                            </div>
-                            <textarea
-                                className={styles.textarea}
-                                placeholder="Album description"
-                                rows={3}
-                                value={editAlbumDraft.description}
-                                onChange={(e) => setEditAlbumDraft((p) => ({ ...p, description: e.target.value }))}
-                            />
-                        </div>
-
-                        {/* Songs section */}
-                        <div className={styles.editSection}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                                <h4 style={{ margin: 0, color: "#fff", fontSize: 15 }}>Songs ({editSongsDraft.length})</h4>
-                                {!isAddingSong && (
-                                    <button
-                                        className={styles.tinyBtn}
-                                        onClick={() => {
-                                            setEditSongForm(emptySong);
-                                            setIsAddingSong(true);
-                                        }}
-                                        style={{ fontSize: 12 }}
-                                    >
-                                        + Add Song
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Add song form */}
-                            {isAddingSong && (
-                                <div style={{ background: "#0b1623", padding: 12, borderRadius: 8, marginBottom: 12 }}>
-                                    <input
-                                        className={styles.input}
-                                        placeholder="Song name *"
-                                        value={editSongForm.name}
-                                        onChange={(e) => setEditSongForm((p) => ({ ...p, name: e.target.value }))}
-                                        style={{ marginBottom: 8 }}
-                                    />
-                                    <input
-                                        className={styles.input}
-                                        placeholder="Year *"
-                                        type="number"
-                                        value={editSongForm.year}
-                                        onChange={(e) => setEditSongForm((p) => ({ ...p, year: e.target.value }))}
-                                        style={{ marginBottom: 8 }}
-                                    />
-                                    <textarea
-                                        className={styles.textarea}
-                                        placeholder="Lyrics text *"
-                                        rows={4}
-                                        value={editSongForm.text}
-                                        onChange={(e) => setEditSongForm((p) => ({ ...p, text: e.target.value }))}
-                                        style={{ marginBottom: 8 }}
-                                    />
-                                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                                        <button
-                                            className={styles.ghost}
-                                            onClick={() => {
-                                                setIsAddingSong(false);
-                                                setEditSongForm(emptySong);
-                                            }}
-                                            style={{ padding: "6px 12px", fontSize: 13 }}
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            className={styles.primary}
-                                            onClick={addSongToEditDraft}
-                                            disabled={!canSaveEditSong}
-                                            style={{ padding: "6px 12px", fontSize: 13 }}
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Songs list */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto" }}>
-                                {editSongsDraft.map((song, idx) => (
-                                    <div
-                                        key={song.id}
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            background: "#0b1623",
-                                            padding: "10px 12px",
-                                            borderRadius: 6,
-                                            fontSize: 14,
-                                        }}
-                                    >
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            <span style={{ color: "#667788", minWidth: 20 }}>{idx + 1}.</span>
-                                            <div>
-                                                <div style={{ color: "#fff", fontWeight: 500 }}>{song.name}</div>
-                                                <div style={{ color: "#8899a6", fontSize: 12 }}>{song.year}</div>
-                                            </div>
-                                        </div>
-                                        <button
-                                            className={styles.tinyBtnDelete}
-                                            onClick={() => removeSongFromEditDraft(song.id)}
-                                            style={{ padding: "4px 8px", fontSize: 11 }}
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                ))}
-                                {editSongsDraft.length === 0 && (
-                                    <div style={{ color: "#8899a6", fontSize: 13, textAlign: "center", padding: 20 }}>
-                                        No songs yet. Add one above!
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className={styles.modalActions}>
-                            <button className={styles.ghost} onClick={closeAllModals}>Cancel</button>
-                            <button
-                                className={styles.primary}
-                                onClick={saveEditAlbum}
-                                disabled={!editAlbumDraft.name.trim() || editSongsDraft.length === 0}
-                            >
-                                Save Changes
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {/* DELETE CONFIRMATION */}
+            {/* ===== DELETE CONFIRM MODAL ===== */}
             {isDeleteConfirmOpen && (
-                <div className={styles.modalOverlay} onClick={closeAllModals}>
+                <div className={styles.modalOverlay} onClick={handleCloseModals}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                         <h3 style={{ color: "#ff6b6b" }}>⚠️ Confirm Delete</h3>
                         <p style={{ color: "#b8c2cc", margin: "12px 0" }}>
-                            {deleteAnnotationId
+                            {deleteTarget?.type === "annotation"
                                 ? "Are you sure you want to delete this annotation?"
-                                : "Delete this album and all its songs?"
-                            }
-                        </p>
-                        <p style={{ fontSize: 13, color: "#8899a6", marginBottom: 20 }}>
-                            This action cannot be undone.
+                                : "Delete this album and all its songs?"}
                         </p>
                         <div className={styles.modalActions}>
-                            <button className={styles.ghost} onClick={closeAllModals}>Cancel</button>
-                            <button
-                                className={styles.danger}
-                                onClick={deleteAnnotationId ? executeDeleteAnnotation : executeDelete}
-                            >
-                                Delete
-                            </button>
+                            <button className={styles.ghost} onClick={handleCloseModals}>Cancel</button>
+                            <button className={styles.danger} onClick={handleExecuteDelete}>Delete</button>
                         </div>
                     </div>
                 </div>

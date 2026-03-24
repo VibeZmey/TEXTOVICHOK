@@ -1,18 +1,16 @@
 import { Navigate } from "react-router-dom";
-import { useAuth} from "../context/AuthContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const PrivateRoute = ({ children, roles }) => {
     const { isAuthenticated, loading, user } = useAuth();
 
     if (loading) return null;
+    if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
-
-    if (roles?.length) {
-        const userRole = user?.role?.name || user?.roleName;
-        if (!roles.includes(userRole)) {
+    if (roles?.length && user?.role) {
+        // роли всегда сравниваем регистронезависимо
+        const allowed = roles.map(r => r.toLowerCase());
+        if (!allowed.includes(user.role.toLowerCase())) {
             return <Navigate to="/profile" replace />;
         }
     }
