@@ -2,12 +2,24 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./Home.module.css";
 import Navbar from "../Components/NavBar/NavBar.jsx";
-import { albumService } from "../api/apiService";
-
+import { albumService, userService } from "../api/apiService";
+const CDN_BASE = "http://localhost:9000";
 const HomePage = () => {
     const [albums, setAlbums] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [artists, setArtists] = useState();
+
+    const getArtist = async (artistId) => {
+        try {
+            const res = await userService.getUserById(artistId);
+            
+        } catch (err) {
+            console.error("Failed to load artist:", err?.response?.data || err);
+            return null;
+        }
+    };
+
 
     useEffect(() => {
         const loadAlbums = async () => {
@@ -61,8 +73,8 @@ const HomePage = () => {
                                 {popularAlbums.map((album) => (
                                     <Link key={album.id} to={`/album/${album.id}`} className={styles.albumCard}>
                                         <div className={styles.albumCoverWrapper}>
-                                            {album.coverImage ? (
-                                                <img src={album.coverImage} alt={album.name || album.title} className={styles.albumCover} />
+                                            {album.imageUrl ? (
+                                                <img src={`${CDN_BASE}/${album.imageUrl}`} alt={album.name || album.title} className={styles.albumCover} />
                                             ) : (
                                                 <div className={styles.albumCoverPlaceholder}>
                                                     <span className={styles.coverIcon}>🎵</span>
@@ -73,7 +85,7 @@ const HomePage = () => {
                                             </div>
                                         </div>
                                         <h3 className={styles.albumName}>{album.name || album.title}</h3>
-                                        <p className={styles.albumArtist}>{album.artist || "Unknown Artist"}</p>
+                                        <p className={styles.albumArtist}>{ getArtist(album.userId).login || "Unknown Artist"}</p>
                                     </Link>
                                 ))}
                             </div>

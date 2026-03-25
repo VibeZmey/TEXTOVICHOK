@@ -109,5 +109,15 @@
     "C:\\Users\\IDIotSUda\\.nuget\\packages\\xunit.extensibility.core\\2.9.3\\xunit.extensibility.core.2.9.3.nupkg.sha512",
     "C:\\Users\\IDIotSUda\\.nuget\\packages\\xunit.extensibility.execution\\2.9.3\\xunit.extensibility.execution.2.9.3.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1900",
+      "level": "Warning",
+      "message": "Error occurred while getting package vulnerability data: Unable to load the service index for source https://api.nuget.org/v3/index.json.",
+      "projectPath": "C:\\Users\\IDIotSUda\\source\\repos\\Software-Creation_GENIUS\\backend\\WebApi\\WebApi.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\IDIotSUda\\source\\repos\\Software-Creation_GENIUS\\backend\\WebApi\\WebApi.csproj",
+      "targetGraphs": []
+    }
+  ]
 }

@@ -2,8 +2,10 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import SearchBar from "../Components/SearchBar/SearchBar.jsx";
 import styles from "./AlbumPage.module.css";
-import { albumService } from "../api/apiService";
+import { albumService, userService } from "../api/apiService";
 import Navbar from "../Components/NavBar/NavBar.jsx";
+
+const CDN_BASE = "http://localhost:9000";
 
 const AlbumPage = () => {
     const { id } = useParams();
@@ -13,6 +15,8 @@ const AlbumPage = () => {
     const [tracks, setTracks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    const [artist, setArtist] = useState(null);
 
     useEffect(() => {
         if (!id) return;
@@ -27,6 +31,8 @@ const AlbumPage = () => {
                 const allAlbums = Array.isArray(albumsRes?.data) ? albumsRes.data : [];
                 const currentAlbum = allAlbums.find((a) => String(a.id) === String(id)) || null;
                 setAlbum(currentAlbum);
+                const a = await userService.getUserById(currentAlbum.userId);
+                setArtist(a.data);
 
                 // 2) Треки альбома отдельным эндпоинтом
                 const lyricsRes = await albumService.getLyrics(id);
@@ -43,7 +49,7 @@ const AlbumPage = () => {
 
         loadAlbumPage();
 
-    }, [id]);
+    }, []);
 
     const load = async () => {
         const res = await albumService.getLyrics(albumId);
@@ -65,17 +71,19 @@ const AlbumPage = () => {
                 genres: [],
             };
         }
-
+        
         return {
             ...album,
             name: album.name || album.title || "Unknown Album",
-            artist: album.artist || "Unknown Artist",
+            artist: "Unknown Artist",
             year: album.year || "N/A",
             description: album.description || "",
-            coverImage: album.coverImage || album.coverUrl || "",
+            coverImage: album.imageUrl || "",
             genres: Array.isArray(album.genres) ? album.genres : [],
         };
     }, [album, id]);
+
+
 
     return (
         <div className={styles.page}>
@@ -86,19 +94,21 @@ const AlbumPage = () => {
                     <div className={styles.heroAccent} />
                     <div className={styles.albumCoverLarge}>
                         {normalizedAlbum.coverImage ? (
-                            <img src={normalizedAlbum.coverImage} alt={normalizedAlbum.name} className={styles.coverImage} />
-                        ) : (
-                            <div className={styles.coverPlaceholder}>
-                                <span className={styles.coverIcon}>🎵</span>
-                            </div>
-                        )}
+                                        <img
+                                            src={`${CDN_BASE}/${normalizedAlbum.coverImage}`}
+                                            alt={album.name}
+                                            className={styles.albumCover}
+                                        />
+                                    ) : (
+                                        <div className={styles.albumCoverPlaceholder} />
+                                    )}
                         <div className={styles.coverGlow} />
                     </div>
                 </div>
                 <div className={styles.albumHeroInfo}>
                     <h1 className={styles.albumTitle}>{normalizedAlbum.name}</h1>
                     <div className={styles.albumMeta}>
-                        <span className={styles.artistName}>{normalizedAlbum.artist}</span>
+                        <span className={styles.artistName}>{artist != null ? artist.login : "Unknown Artist"}</span>
                     </div>
                 </div>
             </div>
@@ -129,7 +139,7 @@ const AlbumPage = () => {
                                         <span className={styles.trackIndex}>{index + 1}</span>
                                         <div className={styles.trackInfo}>
                                             <span className={styles.trackName}>{track.name || track.title || "Untitled"}</span>
-                                            <span className={styles.trackArtist}>{normalizedAlbum.artist}</span>
+                                            <span className={styles.trackArtist}>{artist != null ? artist.login : "Unknown Artist"}</span>
                                         </div>
                                         <span className={styles.trackDuration}>{track.duration || "--:--"}</span>
                                     </button>

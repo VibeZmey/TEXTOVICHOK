@@ -3,8 +3,11 @@ import styles from "./LyricsView.module.css";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import SearchBar from "../SearchBar/SearchBar.jsx";
 import { useAuth } from "../../context/AuthContext";
-import {lyricsService, annotationService, albumService} from "../../api/apiService";
+import {lyricsService, annotationService, albumService, userService} from "../../api/apiService";
 import Navbar from "../NavBar/NavBar.jsx";
+
+
+const CDN_BASE = "http://localhost:9000";
 
 const LyricsView = () => {
     const { id: lyricsId } = useParams();
@@ -16,6 +19,7 @@ const LyricsView = () => {
     const preloadedTrack = location.state?.track || null;
     const preloadedAlbum = location.state?.album || null;
 
+    const [artist, setArtist] = useState(null);
     const [track, setTrack] = useState(preloadedTrack);
     const [album, setAlbum] = useState(preloadedAlbum);
     const [annotations, setAnnotations] = useState([]);
@@ -46,6 +50,7 @@ const LyricsView = () => {
                 const res = await lyricsService.getAnnotations(lyricsId);
                 const serverData = Array.isArray(res.data) ? res.data : [];
                 setAnnotations(serverData);
+                
             } catch (err) {
                 console.error("Failed to load annotations:", err?.response?.data || err);
                 setAnnotations([]);
@@ -232,7 +237,15 @@ const LyricsView = () => {
                 <div className={styles.heroContent}>
                     <div className={styles.trackCoverLarge}>
                         <div className={styles.coverPlaceholder}>
-                            <span className={styles.coverIcon}>🎵</span>
+                        {album.imageUrl ? (
+                                        <img
+                                            src={`${CDN_BASE}/${album.imageUrl}`}
+                                            alt={album.name}
+                                            className={styles.albumCover}
+                                        />
+                                    ) : (
+                                        <div className={styles.albumCoverPlaceholder} />
+                                    )}
                         </div>
                         <div className={styles.coverGlow} />
                     </div>
