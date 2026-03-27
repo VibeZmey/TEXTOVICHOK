@@ -34,6 +34,16 @@ public class LyricsController(
     {
         return Ok(await annotationRepository.GetAnnotationsByLyricsId(id));
     }
+
+    /// <summary>
+    /// Получить песню по ID
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<Lyrics>> GetAnnotationById([FromRoute] Guid id)
+    {
+        return Ok(await lyricsRepository.GetLyricsById(id));
+    }
     
     /// <summary>
     /// Обновляет существующую песню.

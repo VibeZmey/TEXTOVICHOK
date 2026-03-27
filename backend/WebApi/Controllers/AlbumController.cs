@@ -24,6 +24,16 @@ public class AlbumController(
         var newAlbum = await albumRepository.CreateAlbum(album);
         return Ok(newAlbum);
     }
+
+    /// <summary>
+    /// Получить альбом по ID
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<Album>> GetAlbumById([FromRoute] Guid id)
+    {
+        return Ok(await albumRepository.GetAlbumById(id));
+    }
     
     /// <summary>
     /// Получает список всех альбомов.
