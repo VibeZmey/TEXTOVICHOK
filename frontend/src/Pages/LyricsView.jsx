@@ -218,7 +218,7 @@ const LyricsView = () => {
 
     // ===== ФИЛЬТРАЦИЯ АННОТАЦИЙ ПО СТАТУСУ =====
     // Показываем только approved и pending, скрываем rejected
-    const visibleAnnotations = activeAnnotations.filter((ann) => ann.status !== "rejected");
+    const visibleAnnotations = activeAnnotations.filter((ann) => ann.isRejected !== "rejected", );
 
     return (
         <div className={styles.page}>
@@ -325,7 +325,7 @@ const LyricsView = () => {
                                                 </div>
 
                                                 {/* ← БЕЙДЖ СТАТУСА: Показываем только для pending */}
-                                                {ann.status === "pending" && (
+                                                {ann.isRejected !== "rejected" && ann.isVerified !== "verified" && (
                                                     <span className={`${styles.statusBadge} ${styles.pending}`}>
                                                         Непроверенная
                                                     </span>
