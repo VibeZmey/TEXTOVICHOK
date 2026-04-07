@@ -1,7 +1,7 @@
 ﻿// src/pages/AdminPage/AdminAlbumCard.jsx
 import { useMemo } from "react";
 import styles from "./AdminPage.module.css";
-import { useAlbumLyrics } from "../hooks";
+import { useAlbumLyrics } from "../hooks/index.js";
 
 const CDN_BASE = "http://localhost:9000";
 

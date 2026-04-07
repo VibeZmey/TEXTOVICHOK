@@ -5,7 +5,7 @@ import styles from "./AdminPage.module.css";
 
 // Компоненты
 import Navbar from "../Components/NavBar/NavBar.jsx";
-import AdminAlbumCard from "../Components/AdminAlbumCard.jsx";
+import AdminAlbumCard from "./AdminAlbumCard.jsx";
 
 // Хуки
 import {
