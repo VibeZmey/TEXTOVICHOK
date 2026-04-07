@@ -46,6 +46,7 @@ public class AlbumRepository(
             UserId = album.UserId,
             ImageUrl = $"images/{id}",
             CreatedAt = DateTime.UtcNow,
+            Genre = album.Genre,
             Year = album.Year,
         };
 
@@ -82,6 +83,7 @@ public class AlbumRepository(
         albumToUpdate.Description = album.Description ?? albumToUpdate.Description;
         albumToUpdate.Year = album.Year ?? albumToUpdate.Year;
         albumToUpdate.UpdatedAt = DateTime.UtcNow;
+        albumToUpdate.Genre = album.Genre ?? albumToUpdate.Genre;
 
         await  context.SaveChangesAsync(cancellationToken);
         return albumToUpdate;
