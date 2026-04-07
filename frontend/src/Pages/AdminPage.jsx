@@ -5,6 +5,7 @@ import styles from "./AdminPage.module.css";
 
 // Компоненты
 import Navbar from "../Components/NavBar/NavBar.jsx";
+import AdminAlbumCard from "../Components/AdminAlbumCard.jsx";
 
 // Хуки
 import {
@@ -14,7 +15,6 @@ import {
     useBlockUser,
     useApproveAnnotation,
     useRejectAnnotation,
-    useAlbumLyrics
 } from "../hooks";
 
 const CDN_BASE = "http://localhost:9000";
@@ -373,117 +373,28 @@ const AdminPage = () => {
                 </div>
 
                 {/* ===== ALBUMS COLUMN ===== */}
-                <div className={styles.column}>
-                    <div className={styles.sectionHeader}>
-                        <h2 className={styles.sectionTitle}>Albums</h2>
-                        {selectedUser && (
-                            <span className={styles.sectionCount}>
-                                {albumsLoading ? "…" : userAlbums?.length || 0}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className={styles.albumList}>
-                        {!selectedUser ? (
-                            <div className={styles.emptyState}>
-                                <p>Select a user to view their albums</p>
-                            </div>
-                        ) : albumsLoading ? (
-                            <div className={styles.emptyState}>Loading…</div>
-                        ) : !userAlbums?.length ? (
-                            <div className={styles.emptyState}>
-                                <span className={styles.emptyIcon}>🎵</span>
-                                <p>No albums from this user</p>
-                            </div>
-                        ) : (
-                            userAlbums.map((album) => {
-
-                                const {
-                                    lyrics: albumTracks,
-                                    isLoading: tracksLoading,
-                                    isError: tracksError
-                                } = useAlbumLyrics(album.id);
-
-                                const albumName = album.name || "Unknown Album";
-                                const albumYear = album.year || "N/A";
-                                const songs = albumTracks;
-
-                                return (
-                                    <div key={album.id} className={styles.albumCard}>
-                                        <div className={styles.albumHeader}>
-                                            <div className={styles.albumCoverWrapper}>
-                                                {album.imageUrl ? (
-                                                    <img
-                                                        src={`${CDN_BASE}/${album.imageUrl}`}
-                                                        alt={albumName}
-                                                        className={styles.albumCover}
-                                                        loading="lazy"
-                                                    />
-                                                ) : (
-                                                    <div className={styles.albumCoverPlaceholder}>
-                                                        <span className={styles.coverIcon}>🎵</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className={styles.albumInfo}>
-                                                <h3 className={styles.albumName}>{albumName}</h3>
-                                                <div className={styles.albumMeta}>
-                                                    <span className={styles.metaItem}>{songs.length} track{songs.length !== 1 ? "s" : ""}</span>
-                                                    <span className={styles.metaDivider}>•</span>
-                                                    <span className={styles.metaItem}>{albumYear}</span>
-                                                </div>
-                                                {album.description && (
-                                                    <p className={styles.albumDescription}>
-                                                        {truncateText(album.description, 120)}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {songs.length > 0 && (
-                                            <div className={styles.tracklistContainer}>
-                                                <div className={styles.tracklistHeader}>
-                                                    <span className={styles.tracklistTitle}>Tracklist</span>
-                                                    <span className={styles.tracklistCount}>{songs.length}</span>
-                                                </div>
-
-                                                <ul className={styles.tracklist}>
-                                                    {songs.map((song, index) => {
-                                                        const trackName = song.name || song.title || "Untitled";
-                                                        const duration = formatDuration(song.duration);
-
-                                                        return (
-                                                            <li
-                                                                key={song.id || index}
-                                                                className={styles.trackItem}
-                                                                title={trackName}
-                                                            >
-                                                                <span className={styles.trackNumber}>
-                                                                    {String(index + 1).padStart(2, '0')}
-                                                                </span>
-                                                                <div className={styles.trackDetails}>
-                                                                    <span className={styles.trackName}>{trackName}</span>
-                                                                    {song.description && (
-                                                                        <span className={styles.trackDescription}>
-                                                                            {truncateText(song.description, 40)}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                {duration !== "--:--" && (
-                                                                    <span className={styles.trackDuration}>{duration}</span>
-                                                                )}
-                                                            </li>
-                                                        );
-                                                    })}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
+                <div className={styles.albumList}>
+                    {!selectedUser ? (
+                        <div className={styles.emptyState}>
+                            <p>Select a user to view their albums</p>
+                        </div>
+                    ) : albumsLoading ? (
+                        <div className={styles.emptyState}>Loading…</div>
+                    ) : !userAlbums?.length ? (
+                        <div className={styles.emptyState}>
+                            <span className={styles.emptyIcon}>🎵</span>
+                            <p>No albums from this user</p>
+                        </div>
+                    ) : (
+                        userAlbums.map((album) => (
+                            <AdminAlbumCard
+                                key={album.id}
+                                album={album}
+                                formatDuration={formatDuration}
+                                truncateText={truncateText}
+                            />
+                        ))
+                    )}
                 </div>
             </div>
         </div>
