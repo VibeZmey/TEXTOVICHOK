@@ -21,7 +21,7 @@ const CDN_BASE = "http://localhost:9000";
 const AdminPage = () => {
     const navigate = useNavigate();
 
-    // 🔥 React Query: загрузка данных
+    // React Query: загрузка данных
     const {
         users,
         isLoading: usersLoading,

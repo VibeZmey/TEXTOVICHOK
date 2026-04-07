@@ -284,6 +284,38 @@
     transition: all 0.2s;
 }
 
+.annotationHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.statusBadge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.statusBadge.pending {
+    background: rgba(255, 165, 0, 0.15);
+    color: #ffa500;
+    border: 1px solid rgba(255, 165, 0, 0.3);
+}
+
+/* Approved (Одобренная) — зелёный */
+.statusBadge.approved {
+    background: rgba(47, 143, 124, 0.15);
+    color: #2f8f7c;
+    border: 1px solid rgba(47, 143, 124, 0.3);
+}
+
 .annotationQuote {
     color: #ff6b8a;
     font-size: 14px;

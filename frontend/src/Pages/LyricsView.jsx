@@ -33,15 +33,13 @@ const LyricsView = () => {
     } = useLyricsAnnotations(lyricsId);
 
     // Загружаем альбом и артиста (если есть track.userId или track.albumId)
-    const {  album } = useAlbum(track?.albumId);
-    const {   user: artist } = useUser(album?.userId);
+    const { album } = useAlbum(track?.albumId);
+    const { user: artist } = useUser(album?.userId);
 
     // 🔥 Сводные состояния
     const isLoading = trackLoading || annotationsLoading;
 
     // ===== СОХРАНЕННАЯ ЛОГИКА: Выделение текста и модальные окна =====
-    // (Всё ниже — без изменений, как ты просил)
-
     const [activeOffset, setActiveOffset] = useState(null);
     const [selectionState, setSelectionState] = useState(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -52,7 +50,7 @@ const LyricsView = () => {
         return text.replace(/\r\n/g, "\n");
     }, [track?.text]);
 
-    // Нормализация аннотаций (без изменений)
+    // Нормализация аннотаций
     const normalizedAnnotations = useMemo(() => {
         return (annotations || [])
             .map((a) => ({ ...a, from: Number(a.from), to: Number(a.to) }))
@@ -67,7 +65,7 @@ const LyricsView = () => {
             .sort((a, b) => a.from - b.from || String(a.id).localeCompare(String(b.id)));
     }, [annotations, lyricsText.length]);
 
-    // Вспомогательные функции (без изменений)
+    // Вспомогательные функции
     const getGlobalOffset = (node, nodeOffset) => {
         let el = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
         while (el && el !== containerRef.current && !el.dataset?.start) el = el.parentElement;
@@ -151,9 +149,7 @@ const LyricsView = () => {
         });
     };
 
-    // ===== СОХРАНЕННАЯ ЛОГИКА: Создание аннотации =====
-    // (Минимальное изменение: добавили invalidate вместо ручного setAnnotations)
-
+    // ===== СОЗДАНИЕ АННОТАЦИИ =====
     const submitAnnotation = async (e) => {
         e.preventDefault();
         if (!selectionState || !lyricsId) return;
@@ -182,12 +178,9 @@ const LyricsView = () => {
         };
 
         try {
-            // Отправляем запрос как раньше
             const res = await annotationService.create(payload);
             const saved = res?.data;
 
-            // 🔥 FIX: Вместо ручного обновления стейта — инвалидируем кэш!
-            // Это гарантирует, что данные обновятся и в этом компоненте, и в других местах
             if (saved) {
                 invalidateAnnotations();
                 setActiveOffset(Math.floor((saved.from + saved.to) / 2));
@@ -204,7 +197,6 @@ const LyricsView = () => {
     };
 
     // ===== ОТОБРАЖЕНИЕ: Нормализация данных для UI =====
-
     const trackTitle = track?.name || track?.title || "Track Title";
     const artistName = artist?.login || album?.artistName || "Unknown Artist";
     const albumName = album?.name || "Unknown Album";
@@ -223,6 +215,10 @@ const LyricsView = () => {
             </div>
         );
     }
+
+    // ===== ФИЛЬТРАЦИЯ АННОТАЦИЙ ПО СТАТУСУ =====
+    // Показываем только approved и pending, скрываем rejected
+    const visibleAnnotations = activeAnnotations.filter((ann) => ann.status !== "rejected");
 
     return (
         <div className={styles.page}>
@@ -249,9 +245,9 @@ const LyricsView = () => {
                     <div className={styles.trackHeroInfo}>
                         <h1 className={styles.trackTitle}>{trackTitle}</h1>
                         <div className={styles.trackMeta}>
-              <span className={styles.artistName}>
-                {trackLoading || annotationsLoading ? "Loading..." : artistName}
-              </span>
+                            <span className={styles.artistName}>
+                                {trackLoading || annotationsLoading ? "Loading..." : artistName}
+                            </span>
                             <span className={styles.metaDivider}>•</span>
                             <span className={styles.albumName}>{albumName}</span>
                             <span className={styles.metaDivider}>•</span>
@@ -280,8 +276,8 @@ const LyricsView = () => {
                                         if (!seg.isAnnotated) {
                                             return (
                                                 <span key={`p-${idx}`} data-start={seg.from} data-end={seg.to}>
-                          {seg.text}
-                        </span>
+                                                    {seg.text}
+                                                </span>
                                             );
                                         }
                                         const isInActiveGroup =
@@ -296,8 +292,8 @@ const LyricsView = () => {
                                                 className={`${styles.annotated} ${isInActiveGroup ? styles.annotatedActive : ""}`}
                                                 onClick={() => setActiveOffset(Math.floor((seg.from + seg.to) / 2))}
                                             >
-                        {seg.text}
-                      </span>
+                                                {seg.text}
+                                            </span>
                                         );
                                     })}
                                 </div>
@@ -309,25 +305,37 @@ const LyricsView = () => {
                     <div className={styles.sidebar}>
                         <div className={styles.sidebarCard}>
                             <h3 className={styles.sidebarTitle}>
-                                {activeAnnotations.length > 0 ? `Annotations (${activeAnnotations.length})` : "Annotations"}
+                                {visibleAnnotations.length > 0 ? `Annotations (${visibleAnnotations.length})` : "Annotations"}
                             </h3>
 
                             {annotationsLoading ? (
                                 <div className={styles.annotationPlaceholder}>
                                     <p>Loading annotations...</p>
                                 </div>
-                            ) : activeAnnotations.length > 0 ? (
+                            ) : visibleAnnotations.length > 0 ? (
                                 <div className={styles.annotationsList}>
-                                    {activeAnnotations.map((ann) => (
-                                        <div key={ann.id} className={styles.annotationCard}>
-                                            <div className={styles.annotationQuote}>
-                                                "{lyricsText.slice(ann.from, ann.to)}"
+                                    {visibleAnnotations.map((ann) => (
+                                        <div
+                                            key={ann.id}
+                                            className={`${styles.annotationCard} ${styles[ann.status] || ""}`}
+                                        >
+                                            <div className={styles.annotationHeader}>
+                                                <div className={styles.annotationQuote}>
+                                                    "{lyricsText.slice(ann.from, ann.to)}"
+                                                </div>
+
+                                                {/* ← БЕЙДЖ СТАТУСА: Показываем только для pending */}
+                                                {ann.status === "pending" && (
+                                                    <span className={`${styles.statusBadge} ${styles.pending}`}>
+                                                        Непроверенная
+                                                    </span>
+                                                )}
                                             </div>
                                             <p className={styles.annotationText}>{ann.text}</p>
                                             <div className={styles.annotationMeta}>
-                        <span className={styles.annotationAuthor}>
-                          {ann.userId === user?.id ? "You" : "User"}
-                        </span>
+                                                <span className={styles.annotationAuthor}>
+                                                    {ann.userId === user?.id ? "You" : "User"}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
@@ -343,7 +351,7 @@ const LyricsView = () => {
                 </div>
             </div>
 
-            {/* ===== КНОПКА ДОБАВЛЕНИЯ АННОТАЦИИ (без изменений) ===== */}
+            {/* ===== КНОПКА ДОБАВЛЕНИЯ АННОТАЦИИ ===== */}
             {selectionState && (
                 <button
                     className={styles.addBtn}
@@ -359,7 +367,7 @@ const LyricsView = () => {
                 </button>
             )}
 
-            {/* ===== МОДАЛКА СОЗДАНИЯ АННОТАЦИИ (без изменений) ===== */}
+            {/* ===== МОДАЛКА СОЗДАНИЯ АННОТАЦИИ ===== */}
             {isCreateModalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setIsCreateModalOpen(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -370,18 +378,26 @@ const LyricsView = () => {
                         </div>
 
                         <form onSubmit={submitAnnotation}>
-              <textarea
-                  className={styles.textarea}
-                  placeholder="Write your annotation..."
-                  value={newAnnotationText}
-                  onChange={(e) => setNewAnnotationText(e.target.value)}
-                  rows={5}
-              />
+                            <textarea
+                                className={styles.textarea}
+                                placeholder="Write your annotation..."
+                                value={newAnnotationText}
+                                onChange={(e) => setNewAnnotationText(e.target.value)}
+                                rows={5}
+                            />
                             <div className={styles.modalActions}>
-                                <button type="button" className={styles.btnGhost} onClick={() => setIsCreateModalOpen(false)}>
+                                <button
+                                    type="button"
+                                    className={styles.btnGhost}
+                                    onClick={() => setIsCreateModalOpen(false)}
+                                >
                                     Cancel
                                 </button>
-                                <button type="submit" className={styles.btnPrimary} disabled={!newAnnotationText.trim()}>
+                                <button
+                                    type="submit"
+                                    className={styles.btnPrimary}
+                                    disabled={!newAnnotationText.trim()}
+                                >
                                     Save Annotation
                                 </button>
                             </div>
