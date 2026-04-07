@@ -12,8 +12,9 @@ import {
     useUserAlbums,
     useUserAnnotations,
     useBlockUser,
-    useApproveAnnotation,  // 👈 Новые хуки
+    useApproveAnnotation,
     useRejectAnnotation,
+    useAlbumLyrics
 } from "../hooks";
 
 const CDN_BASE = "http://localhost:9000";
@@ -396,9 +397,16 @@ const AdminPage = () => {
                             </div>
                         ) : (
                             userAlbums.map((album) => {
+
+                                const {
+                                    lyrics: albumTracks,
+                                    isLoading: tracksLoading,
+                                    isError: tracksError
+                                } = useAlbumLyrics(album.id);
+
                                 const albumName = album.name || "Unknown Album";
                                 const albumYear = album.year || "N/A";
-                                const songs = album.songs || album.lyrics || album.tracks || [];
+                                const songs = albumTracks;
 
                                 return (
                                     <div key={album.id} className={styles.albumCard}>

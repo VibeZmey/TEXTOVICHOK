@@ -93,18 +93,23 @@ const LyricsView = () => {
     }, [activeAnnotations]);
 
     const segments = useMemo(() => {
+        const activeNormalizedAnnotations = normalizedAnnotations.filter((a) => !a.isRejected);
+
         const points = new Set([0, lyricsText.length]);
-        normalizedAnnotations.forEach((a) => {
+        activeNormalizedAnnotations.forEach((a) => {
             points.add(a.from);
             points.add(a.to);
         });
+
         const sorted = [...points].sort((a, b) => a - b);
         const result = [];
+
         for (let i = 0; i < sorted.length - 1; i++) {
             const from = sorted[i];
             const to = sorted[i + 1];
             if (to <= from) continue;
-            const hasAnyAnnotation = normalizedAnnotations.some((a) => a.from < to && a.to > from);
+
+            const hasAnyAnnotation = activeNormalizedAnnotations.some((a) => a.from < to && a.to > from);
             result.push({
                 from,
                 to,
@@ -112,8 +117,9 @@ const LyricsView = () => {
                 isAnnotated: hasAnyAnnotation,
             });
         }
+
         return result;
-    }, [lyricsText, normalizedAnnotations]);
+    }, [lyricsText, normalizedAnnotations]); // Зависимости оставляем те же
 
     const handleMouseUp = () => {
         const sel = window.getSelection();
