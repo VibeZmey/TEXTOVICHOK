@@ -177,6 +177,7 @@
         color: rgba(255,255,255,0.9);
         font-size: 15px;
         line-height: 1.5;
+        font-family: 'Roboto Slab', serif;
     }
     .contentWrapper {
         max-width: 900px;  /* Уменьшил с 1600px до 900px - ближе к центру */
@@ -207,6 +208,7 @@
     .listItem {
         background: #162233;
         border-radius: 8px;
+        border: 1px solid #2c3646;
         padding: 10px;  /* Чуть уменьшил padding */
         cursor: pointer;
         transition: background 0.2s;
@@ -228,18 +230,10 @@
         font-size: 14px;
     }
 
-    .readReview {
-        color: #ff3366;
-        font-size: 13px;
-        font-weight: 500;
-        margin-top: 6px;
-        cursor: pointer;
-    }
-
     .addLyricsButton {
-        background: #ff3366;
-        color: #fff;
-        border: none;
+        background: transparent;
+        color: #ff6b8a;
+        border: 1px solid rgba(255, 107, 138, 0.3);
         padding: 12px 24px;
         border-radius: 8px;
         font-size: 14px;
@@ -249,9 +243,10 @@
         width: fit-content;
         transition: background 0.2s;
     }
-
     .addLyricsButton:hover {
-        background: #ff4d7a;
+        background: rgba(255, 107, 138, 0.1);
+        border-color: #ff6b8a;
+        color: #ff6b8a;
     }
     .albumCover {
         width: 50px;
@@ -428,31 +423,10 @@
     }
 
     /* ===== READ REVIEW LINK ===== */
-    .readReview {
-        color: #ff3366;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .readReview:hover {
-        color: #ff6b8a;
-        text-decoration: underline;
-    }
-
-
-    .listItem:hover {
-        background: #1f2f45;
-    }
-
     .annotationRow {
         display: grid;
-        grid-template-columns: 110px 1fr 52px;
-        gap: 12px;
+        grid-template-columns: 70px 1fr 37px;
+        gap: 10px;
         align-items: center;
         background: #162233;
         border: 1px solid #2c3646;
@@ -467,11 +441,12 @@
     }
 
     .annotationStatus {
-        font-size: 12px;
-        text-transform: capitalize;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid transparent;
+        padding: 6px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-family: 'Roboto Slab', serif;
     }
 
     .annotationMainCol {
@@ -496,17 +471,26 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-
+    .annotationQuote {
+        background: #0b1623;
+        padding: 8px 10px;
+        border-radius: 6px;
+        color: #ff6b8a;
+        font-size: 13px;
+    }
     .annotationText {
         font-size: 13px;
-        color: #d2d9e5;
+        color: #bdc3ca;
         line-height: 1.35;
         word-break: break-word;
+        background: #0b1623;
+        font-family: 'Roboto Slab', serif;
     }
 
     .annotationActionCol {
         display: flex;
         justify-content: flex-end;
+        z-index: 1;
     }
 
     .deleteAnnotationBtn {
@@ -533,21 +517,18 @@
     }
 
     .pending .annotationStatus {
-        color: #f6c768;
-        border-color: #6f5725;
-        background: rgba(246, 199, 104, 0.12);
+        background: rgba(255, 165, 0, 0.2);
+        color: #ffa500;
     }
 
     .approved .annotationStatus {
-        color: #77d49c;
-        border-color: #2e6b46;
-        background: rgba(119, 212, 156, 0.12);
+        background: rgba(47, 143, 124, 0.2);
+        color: #2f8f7c;
     }
 
     .rejected .annotationStatus {
-        color: #ff8d8d;
-        border-color: #7a3434;
-        background: rgba(255, 141, 141, 0.12);
+        background: rgba(255, 51, 102, 0.2);
+        color: #ff3366;
     }
     .usernameRow{
         display: flex;
@@ -572,15 +553,17 @@
     }
 
     .badgeArtist{
-        border-color: #2e6b46;
-        background: rgba(119, 212, 156, 0.12);
-        color: #77d49c;
+        border-color: #d0dcd4;
+        background: transparent;
+        color: #ffffff;
+        font-family: 'Roboto Slab', serif;
     }
 
     .badgeEditor{
-        border-color: #6f5725;
-        background: rgba(246, 199, 104, 0.12);
-        color: #f6c768;
+        background: transparent;
+        color: #ff4a78;
+        border-color: #d61e4c;
+        font-family: 'Roboto Slab', serif;
     }
 
     /* Кнопка Edit — сильно вправо */
@@ -588,10 +571,11 @@
         margin-left: auto;
         padding: 8px 12px;
         border-radius: 10px;
-        border: 1px solid #364357;
+        border: 1px solid #e3e6ec;
         background: transparent;
-        color: #364357;
+        color: #ffffff;
         cursor: pointer;
+        font-family: 'Roboto Slab', serif;
     }
     .editBtnRight:disabled{
         opacity: 0.6;
@@ -604,20 +588,6 @@
         object-fit: cover;
         border-radius: 999px;
     }
-
-    .editBtn{
-        margin-left: 12px;
-        padding: 8px 12px;
-        border-radius: 10px;
-        background: transparent;
-        color: #2b3647;
-        border: 1px solid rgba(255, 107, 138, 0.3);
-        cursor: pointer;
-    }
-    .editBtn:hover{
-        background: #2b3647;
-    }
-
     .label{
         display: block;
         margin-top: 10px;

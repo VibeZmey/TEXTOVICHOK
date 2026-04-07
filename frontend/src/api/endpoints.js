@@ -17,6 +17,7 @@ export const ENDPOINTS = {
     UPDATE: (id) => `/user/${id}`,
   },
   ALBUMS: {
+    CREATE: "/albums",
     GET_ALL: "/albums",
     BY_ID: (id) => `/albums/${id}`,
     LYRICS: (id) => `/albums/${id}/lyrics`,
@@ -25,6 +26,7 @@ export const ENDPOINTS = {
   },
   LYRICS: {
     CREATE: "/lyrics",
+    GET_ALL: "/lyrics",
     BY_ID: (id) => `/lyrics/${id}`,
     UPDATE: (id) => `/lyrics/${id}`,
     DELETE: (id) => `/lyrics/${id}`,

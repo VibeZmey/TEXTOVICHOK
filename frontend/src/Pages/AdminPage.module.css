@@ -727,3 +727,203 @@
 .annotationCard.expanded {
     background: rgba(125, 184, 204, 0.05);
 }
+/* ===== ДОБАВИТЬ В КОНЕЦ ФАЙЛА ===== */
+
+/* --- Аннотации: название песни с иконкой --- */
+.annotationSong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.songIcon {
+    font-size: 1.1em;
+    flex-shrink: 0;
+}
+
+.songNameText {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+/* --- Аннотации: цитата из текста песни --- */
+.annotationQuote {
+    margin: 8px 0 12px;
+    padding: 8px 10px;
+    background: #0b1623;
+    border-radius: 6px;
+}
+
+.quoteLabel {
+    display: block;
+    font-size: 0.7rem;
+    color: #667788;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.lyricsSnippet {
+    margin: 0;
+    font-style: italic;
+    color: #ff6b8a;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* --- Альбомы: обложка с плейсхолдером --- */
+.albumCoverWrapper {
+    width: 50px;
+    height: 50px;
+    border-radius: 6px;
+    background: #0b1623;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.albumCover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.albumCoverPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: #667788;
+}
+
+.coverIcon {
+    font-size: 1.3rem;
+}
+
+/* --- Альбомы: мета-информация --- */
+.albumMeta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #667788;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+.metaItem {
+    font-family: 'Roboto Slab', serif;
+}
+
+.metaDivider {
+    color: #2a3b52;
+}
+
+.albumDescription {
+    color: #8899a6;
+    font-size: 12px;
+    margin-top: 6px;
+    line-height: 1.4;
+    font-family: 'Roboto Slab', serif;
+}
+
+/* --- Альбомы: список треков --- */
+.tracklistContainer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #1e2a3a;
+}
+
+.tracklistHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.tracklistTitle {
+    font-size: 0.75rem;
+    color: #667788;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Roboto Slab', serif;
+}
+
+.tracklistCount {
+    font-size: 0.7rem;
+    color: #8899a6;
+    background: #0b1623;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.tracklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.trackItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #0b1623;
+}
+
+.trackNumber {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #667788;
+    min-width: 20px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Roboto Slab', serif;
+}
+
+.trackDetails {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.trackName {
+    color: #b8c2cc;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Roboto Slab', serif;
+}
+
+.trackDescription {
+    font-size: 0.7rem;
+    color: #667788;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Roboto Slab', serif;
+}
+
+.trackDuration {
+    font-size: 0.75rem;
+    color: #667788;
+    font-variant-numeric: tabular-nums;
+    min-width: 36px;
+    text-align: right;
+    font-family: 'Roboto Slab', serif;
+}

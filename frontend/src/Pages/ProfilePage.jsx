@@ -1,13 +1,29 @@
+// src/pages/ProfilePage/ProfilePage.jsx
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import styles from "./Profile.module.css";
-import SearchBar from "../Components/SearchBar/SearchBar";
-import { useAuth } from "../context/AuthContext";
-import { userService, albumService, annotationService, lyricsService } from "../api/apiService";
+
+// Компоненты
 import Navbar from "../Components/NavBar/NavBar.jsx";
+
+// Контекст и хуки
+import { useAuth } from "../context/AuthContext";
+import {
+    useCurrentUser,
+    useUserAlbums,
+    useUserAnnotations,
+    useUpdateProfile,
+    useDeleteAlbum,
+    useDeleteAnnotation,
+    useCreateAlbum,
+} from "../hooks";
+
+// Утилиты
+import { toFormData } from "../api/apiService";
 
 const CDN_BASE = "http://localhost:9000";
 
+// Начальные состояния для форм (вынесены за компонент)
 const emptyAlbumState = {
     name: "",
     description: "",
@@ -24,137 +40,122 @@ const emptySongState = {
 
 const ProfilePage = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
-    const userId = user?.id;
+    const { user: authUser } = useAuth();
+    const userId = authUser?.id;
 
-    // profile
-    const [profile, setProfile] = useState(null);
-    const [loadingProfile, setLoadingProfile] = useState(true);
+    // 🔥 React Query: загрузка данных (больше никаких useState для серверных данных!)
+    const {
+        user: profile,
+        isLoading: loadingProfile,
+        isError: profileError,
+        invalidate: invalidateProfile,
+    } = useCurrentUser();
 
-    // edit profile modal
+    const {
+        albums,
+        isLoading: loadingAlbums,
+        invalidate: invalidateAlbums,
+    } = useUserAlbums(userId);
+
+    const {
+        annotations: userAnnotations,
+        isLoading: loadingAnnotations,
+        invalidate: invalidateAnnotations,
+    } = useUserAnnotations(userId);
+
+    // 🔥 React Query: мутации (создание/обновление/удаление)
+    const updateProfileMutation = useUpdateProfile(userId);
+    const deleteAlbumMutation = useDeleteAlbum();
+    const deleteAnnotationMutation = useDeleteAnnotation();
+    const createAlbumMutation = useCreateAlbum(userId);
+
+    // 🔥 Локальные стейты — только для UI (модалки, формы, превью)
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [editLogin, setEditLogin] = useState("");
     const [editDescription, setEditDescription] = useState("");
     const [editAvatarFile, setEditAvatarFile] = useState(null);
-    const [savingProfile, setSavingProfile] = useState(false);
+    const [avatarPreview, setAvatarPreview] = useState(null);
 
-    // albums/annotations
-    const [albums, setAlbums] = useState([]);
-    const [userAnnotations, setUserAnnotations] = useState([]);
-    const [loadingAlbums, setLoadingAlbums] = useState(true);
-    const [loadingAnnotations, setLoadingAnnotations] = useState(true);
-
-    // modals (create/delete)
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState(null); // { type, id }
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
-    // create album wizard
     const [showSongStep, setShowSongStep] = useState(false);
     const [albumDraft, setAlbumDraft] = useState(emptyAlbumState);
     const [songsDraft, setSongsDraft] = useState([]);
     const [songDraft, setSongDraft] = useState(emptySongState);
 
-    // annotations UI
     const [showAllAnnotations, setShowAllAnnotations] = useState(false);
 
-    // cache: lyricsId -> lyricsDto
-    const [lyricsById, setLyricsById] = useState({});
-
+    // Вычисляемые значения
     const avatarUrl = useMemo(() => {
-        const imageUrl = profile?.imageUrl; // <— предполагаем это поле, как у альбома
+        const imageUrl = profile?.imageUrl;
         if (!imageUrl) return "";
         return `${CDN_BASE}/${imageUrl}`;
     }, [profile?.imageUrl]);
 
-    const visibleLogin = profile?.login || user?.login || "unknown";
+    const visibleLogin = profile?.login || authUser?.login || "unknown";
     const visibleDescription = profile?.description ?? "No description.";
 
-    const loadProfile = async () => {
-        if (!userId) return;
-        setLoadingProfile(true);
-        try {
-            const res = await userService.getProfile();
-            const p = res?.data || null;
-            setProfile(p);
-
-            setEditLogin(p?.login || "");
-            setEditDescription(p?.description || "");
-            setEditAvatarFile(null);
-        } catch (e) {
-            console.error("Failed to load profile:", e?.response?.data || e);
-            setProfile(null);
-        } finally {
-            setLoadingProfile(false);
-        }
-    };
-
-    const loadLists = async () => {
-        if (!userId) return;
-
-        setLoadingAlbums(true);
-        setLoadingAnnotations(true);
-
-        try {
-            const [albumsRes, annsRes] = await Promise.all([
-                userService.getUserAlbums(userId),
-                userService.getUserAnnotations(userId),
-            ]);
-
-            setAlbums(Array.isArray(albumsRes?.data) ? albumsRes.data : []);
-            setUserAnnotations(Array.isArray(annsRes?.data) ? annsRes.data : []);
-        } catch (e) {
-            console.error("Failed to load lists:", e?.response?.data || e);
-            setAlbums([]);
-            setUserAnnotations([]);
-        } finally {
-            setLoadingAlbums(false);
-            setLoadingAnnotations(false);
-        }
-    };
-
+    // 🔥 Синхронизация формы редактирования с данными профиля
     useEffect(() => {
-        if (!userId) return;
-        loadProfile();
-        loadLists();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userId]);
+        if (profile && isEditProfileOpen) {
+            setEditLogin(profile.login || "");
+            setEditDescription(profile.description || "");
+        }
+    }, [profile, isEditProfileOpen]);
+
+    // 🔥 Очистка превью аватара при размонтировании
+    useEffect(() => {
+        return () => {
+            if (avatarPreview) {
+                URL.revokeObjectURL(avatarPreview);
+            }
+        };
+    }, [avatarPreview]);
 
     // ===== Edit profile =====
     const handleOpenEditProfile = () => {
-        setIsEditProfileOpen(true);
-        setEditLogin(profile?.login || user?.login || "");
+        setEditLogin(profile?.login || "");
         setEditDescription(profile?.description || "");
         setEditAvatarFile(null);
+        setAvatarPreview(null);
+        setIsEditProfileOpen(true);
+    };
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files?.[0];
+        setEditAvatarFile(file || null);
+
+        if (file) {
+            // Создаём превью
+            const url = URL.createObjectURL(file);
+            setAvatarPreview(url);
+        } else {
+            setAvatarPreview(null);
+        }
     };
 
     const handleSaveProfile = async () => {
-        if (!userId) return;
-
         const login = editLogin.trim();
         if (!login) {
             alert("Login is required");
             return;
         }
 
-        setSavingProfile(true);
         try {
-            // ВАЖНО: ключи как в твоём swagger-подходе с альбомом: PascalCase
-            // Если бэк ждёт другие названия — скажи, подстрою.
-            const fd = new FormData();
-            fd.append("Login", login);
-            fd.append("Description", editDescription || "");
-            if (editAvatarFile) fd.append("Image", editAvatarFile);
-
-            await userService.updateUser(userId, fd);
+            // ✅ Мутация сама преобразует данные в FormData при необходимости
+            await updateProfileMutation.mutateAsync({
+                login,
+                description: editDescription,
+                image: editAvatarFile,
+            });
 
             setIsEditProfileOpen(false);
-            await loadProfile();
+            // 🔥 Кэш профиля обновится автоматически благодаря invalidateQueries в мутации!
         } catch (e) {
-            console.error("Failed to update profile:", e?.response?.data || e);
-            alert("Failed to update profile");
-        } finally {
-            setSavingProfile(false);
+            console.error("Failed to update profile:", e);
+            alert(e?.response?.data?.message || "Failed to update profile");
         }
     };
 
@@ -189,38 +190,23 @@ const ProfilePage = () => {
         }
 
         try {
-            const fd = new FormData();
-            fd.append("Name", albumDraft.name);
-            fd.append("Description", albumDraft.description || "");
-            fd.append("UserId", userId);
-            fd.append("Year", String(songsDraft[0].year || new Date().getFullYear()));
-            if (albumDraft.coverFile) fd.append("Image", albumDraft.coverFile);
+            // 🔥 Мутация сама формирует правильный FormData с camelCase ключами
+            await createAlbumMutation.mutateAsync({
+                albumData: {
+                    name: albumDraft.name,
+                    description: albumDraft.description,
+                    year: albumDraft.year, // ✅ Используем год из альбома, а не из первой песни!
+                    coverFile: albumDraft.coverFile,
+                },
+                songs: songsDraft,
+            });
 
-            const albumRes = await albumService.create(fd);
-            const album = albumRes.data;
-
-            for (const [i, song] of songsDraft.entries()) {
-                await lyricsService.create({
-                    name: song.name,
-                    albumId: album.id,
-                    orderIndex: i,
-                    text: song.text,
-                    duration: 0,
-                    description: song.description || "",
-                });
-            }
-
-            console.log(profile);
-
-            await loadLists();
             handleCloseModals();
+            // 🔥 Списки альбомов обновятся автоматически
         } catch (err) {
-            if (err?.response) {
-                console.error(err.response.data);
-                alert(JSON.stringify(err.response.data.errors || err.response.data, null, 2));
-            } else {
-                alert("Ошибка создания альбома!");
-            }
+            console.error("Create album error:", err);
+            const errorMsg = err?.response?.data?.message || err?.response?.data?.errors || "Ошибка создания альбома!";
+            alert(typeof errorMsg === "object" ? JSON.stringify(errorMsg) : errorMsg);
         }
     };
 
@@ -230,23 +216,24 @@ const ProfilePage = () => {
         setIsDeleteConfirmOpen(true);
     };
 
-
     const handleExecuteDelete = async () => {
-        if (!deleteTarget) return;
+        if (!deleteTarget || !userId) return;
 
         try {
             if (deleteTarget.type === "album") {
-                await albumService.delete(deleteTarget.id);
+                await deleteAlbumMutation.mutateAsync({
+                    albumId: deleteTarget.id,
+                    userId,
+                });
             } else if (deleteTarget.type === "annotation") {
-                await annotationService.delete(deleteTarget.id);
+                await deleteAnnotationMutation.mutateAsync({
+                    annotationId: deleteTarget.id,
+                    userId,
+                });
             }
-
-            await loadLists();
             handleCloseModals();
         } catch (err) {
-            console.error("DELETE error full:", err);
-            console.error("DELETE error response:", err?.response?.data);
-            console.error("DELETE error request:", err?.request);
+            console.error("Delete error:", err);
             alert("Delete failed");
         }
     };
@@ -256,7 +243,6 @@ const ProfilePage = () => {
         setShowSongStep(false);
         setIsDeleteConfirmOpen(false);
         setDeleteTarget(null);
-
         setAlbumDraft(emptyAlbumState);
         setSongDraft(emptySongState);
         setSongsDraft([]);
@@ -269,26 +255,49 @@ const ProfilePage = () => {
         return "pending";
     };
 
-    const displayedAnnotations = showAllAnnotations ? userAnnotations : userAnnotations.slice(0, 3);
-    const hasMoreAnnotations = userAnnotations.length > 3;
+    const displayedAnnotations = showAllAnnotations
+        ? userAnnotations
+        : userAnnotations?.slice(0, 3) || [];
 
-    const getSongNameByAnnotation = (ann) => {
-        const lyr = lyricsById[ann.lyricsId];
-        return lyr?.name || lyr?.title || "Unknown song";
+    const hasMoreAnnotations = (userAnnotations?.length || 0) > 3;
+
+    // 🔥 Сводные состояния загрузки и ошибок
+    const isLoading = loadingProfile || loadingAlbums || loadingAnnotations;
+    const isSaving =
+        updateProfileMutation.isPending ||
+        createAlbumMutation.isPending ||
+        deleteAlbumMutation.isPending ||
+        deleteAnnotationMutation.isPending;
+
+    // 🔥 Обработка ошибки загрузки профиля
+    if (profileError) {
+        return (
+            <div className={styles.errorPage}>
+                <h2>Failed to load profile</h2>
+                <p>Please try to log in again.</p>
+                <button onClick={() => (window.location.href = "/login")}>Go to login</button>
+            </div>
+        );
+    }
+
+    const truncateText = (text, maxLength = 20) => {
+        if (!text) return "";
+        if (text.length <= maxLength) return text;
+        return text.slice(0, maxLength) + "...";
     };
-
 
     return (
         <div className={styles.page}>
-            {/* NAVBAR */}
-            <Navbar/>
+            <Navbar />
 
             {/* PROFILE HEADER */}
             <div className={styles.profileHeader}>
                 <div className={styles.profileWrapper}>
                     <div className={styles.avatarContainer}>
                         <div className={styles.avatar}>
-                            {avatarUrl ? (
+                            {avatarPreview ? (
+                                <img className={styles.avatarImg} src={avatarPreview} alt="preview" />
+                            ) : avatarUrl ? (
                                 <img className={styles.avatarImg} src={avatarUrl} alt="avatar" />
                             ) : (
                                 <span className={styles.avatarText}>
@@ -301,16 +310,14 @@ const ProfilePage = () => {
                     <div className={styles.profileInfo}>
                         <div className={styles.usernameRow}>
                             <h2 className={styles.username}>@{visibleLogin}</h2>
-
                             <div className={styles.userBadges}>
                                 {profile?.isArtist && <span className={styles.badgeArtist}>Artist</span>}
                                 {profile?.isEditor && <span className={styles.badgeEditor}>Editor</span>}
                             </div>
-
                             <button
                                 className={styles.editBtnRight}
                                 onClick={handleOpenEditProfile}
-                                disabled={loadingProfile}
+                                disabled={loadingProfile || isSaving}
                                 title="Edit profile"
                             >
                                 Edit
@@ -331,7 +338,7 @@ const ProfilePage = () => {
 
                     {loadingAlbums ? (
                         <div className={styles.emptyList}>Loading albums...</div>
-                    ) : albums.length === 0 ? (
+                    ) : !albums?.length ? (
                         <div className={styles.emptyList}>No albums yet.</div>
                     ) : (
                         <div className={styles.list}>
@@ -349,16 +356,9 @@ const ProfilePage = () => {
                                                     alt={album.name}
                                                     className={styles.albumCover}
                                                 />
-                                            ) : album.coverImage ? (
-                                                <img
-                                                    src={album.coverImage}
-                                                    alt={album.name}
-                                                    className={styles.albumCover}
-                                                />
                                             ) : (
                                                 <div className={styles.albumCoverPlaceholder} />
                                             )}
-
                                             <div style={{ minWidth: 0 }}>
                                                 <div className={styles.listItemTitle}>{album.name}</div>
                                                 <div className={styles.listItemArtist}>{album.year}</div>
@@ -368,10 +368,14 @@ const ProfilePage = () => {
                                         <div style={{ display: "flex", gap: 8, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 className={styles.iconBtnDelete}
-                                                onClick={() => handleConfirmDelete("album", album.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleConfirmDelete("album", album.id);
+                                                }}
                                                 title="Delete album"
+                                                disabled={deleteAlbumMutation.isPending}
                                             >
-                                                🗑
+                                                {deleteAlbumMutation.isPending ? "⏳" : "🗑"}
                                             </button>
                                         </div>
                                     </div>
@@ -380,7 +384,13 @@ const ProfilePage = () => {
                         </div>
                     )}
 
-                    <button className={styles.addLyricsButton} onClick={handleOpenCreate}>+ Add</button>
+                    <button
+                        className={styles.addLyricsButton}
+                        onClick={handleOpenCreate}
+                        disabled={isSaving}
+                    >
+                        {isSaving ? "Creating..." : "+ Add"}
+                    </button>
                 </div>
 
                 {/* RIGHT COLUMN - ANNOTATIONS */}
@@ -389,37 +399,42 @@ const ProfilePage = () => {
 
                     {loadingAnnotations ? (
                         <div className={styles.emptyList}>Loading annotations...</div>
-                    ) : userAnnotations.length === 0 ? (
+                    ) : !userAnnotations?.length ? (
                         <div className={styles.emptyList}>
-                            <span style={{ fontSize: 24 }}>💬</span> No annotations yet.
+                            No annotations yet.
                         </div>
                     ) : (
                         <div className={styles.list}>
                             {displayedAnnotations.map((ann) => {
                                 const status = resolveAnnotationStatus(ann);
-
+                                const truncatedText = truncateText(ann.text, 20);
                                 return (
-                                    <div key={ann.id} className={`${styles.annotationRow} ${styles[status]}`}>
-                                        {/* left: status */}
+                                    <div
+                                        key={ann.id}
+                                        className={`${styles.annotationRow} ${styles[status]}`}
+                                        // ✅ Клик по всей строке — переход к песне
+                                        onClick={() => navigate(`/song/${ann.lyricsId}`)}
+                                        style={{ cursor: "pointer" }}
+                                    >
                                         <div className={styles.annotationStatusCol}>
                                             <span className={`${styles.annotationStatus} ${styles[status]}`}>{status}</span>
                                         </div>
-
-                                        {/* center: song/album/text */}
-                                        <div className={styles.annotationMainCol}>
+                                        <div className={styles.annotationQuote}>
                                             <div className={styles.annotationText}>
-                                                {ann.text || "No annotation text"}
+                                                {truncatedText || "No annotation text"}
                                             </div>
                                         </div>
-
-                                        {/* right: delete */}
-                                        <div className={styles.annotationActionCol}>
+                                        <div className={styles.annotationActionCol} onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 className={styles.deleteAnnotationBtn}
-                                                onClick={(e) => { e.stopPropagation(); handleConfirmDelete("annotation", ann.id); }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // ✅ Останавливаем всплытие, чтобы не сработал переход
+                                                    handleConfirmDelete("annotation", ann.id);
+                                                }}
                                                 title="Delete annotation"
+                                                disabled={deleteAnnotationMutation.isPending}
                                             >
-                                                🗑
+                                                {deleteAnnotationMutation.isPending ? "⏳" : "🗑"}
                                             </button>
                                         </div>
                                     </div>
@@ -429,7 +444,10 @@ const ProfilePage = () => {
                             {hasMoreAnnotations && (
                                 <button
                                     className={styles.showAllButton}
-                                    onClick={() => setShowAllAnnotations((a) => !a)}
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // Чтобы клик не триггерил переход
+                                        setShowAllAnnotations((a) => !a);
+                                    }}
                                     type="button"
                                 >
                                     {showAllAnnotations ? "Show less" : `Show all (${userAnnotations.length})`}
@@ -442,7 +460,10 @@ const ProfilePage = () => {
 
             {/* ===== EDIT PROFILE MODAL ===== */}
             {isEditProfileOpen && (
-                <div className={styles.modalOverlay} onClick={() => !savingProfile && setIsEditProfileOpen(false)}>
+                <div
+                    className={styles.modalOverlay}
+                    onClick={() => !isSaving && setIsEditProfileOpen(false)}
+                >
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                         <h3>Edit profile</h3>
 
@@ -452,9 +473,16 @@ const ProfilePage = () => {
                                 className={styles.input}
                                 type="file"
                                 accept="image/*"
-                                onChange={(e) => setEditAvatarFile(e.target.files?.[0] || null)}
-                                disabled={savingProfile}
+                                onChange={handleAvatarChange}
+                                disabled={isSaving}
                             />
+                            {avatarPreview && (
+                                <img
+                                    src={avatarPreview}
+                                    alt="preview"
+                                    style={{ maxWidth: 100, marginTop: 8, borderRadius: 8 }}
+                                />
+                            )}
                         </div>
 
                         <div className={styles.field}>
@@ -463,7 +491,7 @@ const ProfilePage = () => {
                                 className={styles.input}
                                 value={editLogin}
                                 onChange={(e) => setEditLogin(e.target.value)}
-                                disabled={savingProfile}
+                                disabled={isSaving}
                             />
                         </div>
 
@@ -474,16 +502,24 @@ const ProfilePage = () => {
                                 rows={4}
                                 value={editDescription}
                                 onChange={(e) => setEditDescription(e.target.value)}
-                                disabled={savingProfile}
+                                disabled={isSaving}
                             />
                         </div>
 
                         <div className={styles.modalActions}>
-                            <button className={styles.ghost} onClick={() => setIsEditProfileOpen(false)} disabled={savingProfile}>
+                            <button
+                                className={styles.ghost}
+                                onClick={() => setIsEditProfileOpen(false)}
+                                disabled={isSaving}
+                            >
                                 Cancel
                             </button>
-                            <button className={styles.primary} onClick={handleSaveProfile} disabled={savingProfile}>
-                                {savingProfile ? "Saving..." : "Save"}
+                            <button
+                                className={styles.primary}
+                                onClick={handleSaveProfile}
+                                disabled={isSaving || !updateProfileMutation.isIdle}
+                            >
+                                {isSaving ? "Saving..." : "Save"}
                             </button>
                         </div>
                     </div>
@@ -522,7 +558,11 @@ const ProfilePage = () => {
                         />
                         <div className={styles.modalActions}>
                             <button className={styles.ghost} onClick={handleCloseModals}>Cancel</button>
-                            <button className={styles.primary} onClick={() => setShowSongStep(true)} disabled={!canContinueAlbum}>
+                            <button
+                                className={styles.primary}
+                                onClick={() => setShowSongStep(true)}
+                                disabled={!canContinueAlbum}
+                            >
                                 + Add Songs
                             </button>
                         </div>
@@ -541,13 +581,6 @@ const ProfilePage = () => {
                             value={songDraft.name}
                             onChange={(e) => setSongDraft((s) => ({ ...s, name: e.target.value }))}
                         />
-                        <input
-                            className={styles.input}
-                            placeholder="Year"
-                            type="number"
-                            value={songDraft.year}
-                            onChange={(e) => setSongDraft((s) => ({ ...s, year: e.target.value }))}
-                        />
                         <textarea
                             className={styles.textarea}
                             placeholder="Lyrics text *"
@@ -565,7 +598,7 @@ const ProfilePage = () => {
                         <div style={{ marginBottom: 8 }}>
                             {songsDraft.map((song, i) => (
                                 <div key={i} style={{ color: "#888", display: "flex", alignItems: "center", gap: 6 }}>
-                                    {i + 1}. <b>{song.name}</b> ({song.year}){" "}
+                                    {i + 1}. <b>{song.name}</b>{" "}
                                     <button
                                         type="button"
                                         onClick={() => handleRemoveSong(i)}
@@ -582,8 +615,12 @@ const ProfilePage = () => {
                             <button className={styles.ghost} onClick={handleAddSong} disabled={!canAddSong()}>
                                 + Add another
                             </button>
-                            <button className={styles.primary} onClick={handleFinishCreate} disabled={songsDraft.length === 0}>
-                                Finish
+                            <button
+                                className={styles.primary}
+                                onClick={handleFinishCreate}
+                                disabled={songsDraft.length === 0 || createAlbumMutation.isPending}
+                            >
+                                {createAlbumMutation.isPending ? "Creating..." : "Finish"}
                             </button>
                         </div>
                     </div>
@@ -602,7 +639,13 @@ const ProfilePage = () => {
                         </p>
                         <div className={styles.modalActions}>
                             <button className={styles.ghost} onClick={handleCloseModals}>Cancel</button>
-                            <button className={styles.danger} onClick={handleExecuteDelete}>Delete</button>
+                            <button
+                                className={styles.danger}
+                                onClick={handleExecuteDelete}
+                                disabled={deleteAlbumMutation.isPending || deleteAnnotationMutation.isPending}
+                            >
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>

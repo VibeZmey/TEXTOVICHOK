@@ -1,11 +1,20 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+// src/pages/LyricsView/LyricsView.jsx
+import { useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import styles from "./LyricsView.module.css";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import SearchBar from "../SearchBar/SearchBar.jsx";
-import { useAuth } from "../../context/AuthContext";
-import {lyricsService, annotationService, albumService, userService} from "../../api/apiService";
-import Navbar from "../NavBar/NavBar.jsx";
 
+// Компоненты
+import Navbar from "../Components/NavBar/NavBar.jsx";
+
+// Хуки и сервисы
+import { useAuth } from "../context/AuthContext.jsx";
+import {
+    useLyrics,
+    useLyricsAnnotations,
+    useAlbum,
+    useUser,
+} from "../hooks/index.js";
+import { annotationService } from "../api/apiService.js";
 
 const CDN_BASE = "http://localhost:9000";
 
@@ -14,60 +23,36 @@ const LyricsView = () => {
     const { isAuthenticated, user } = useAuth();
     const containerRef = useRef(null);
     const navigate = useNavigate();
-    const location = useLocation();
 
-    const preloadedTrack = location.state?.track || null;
-    const preloadedAlbum = location.state?.album || null;
+    // 🔥 React Query: загрузка данных
+    const { lyrics: track, isLoading: trackLoading, isError: trackError } = useLyrics(lyricsId);
+    const {
+        annotations,
+        isLoading: annotationsLoading,
+        invalidate: invalidateAnnotations
+    } = useLyricsAnnotations(lyricsId);
 
-    const [artist, setArtist] = useState(null);
-    const [track, setTrack] = useState(preloadedTrack);
-    const [album, setAlbum] = useState(preloadedAlbum);
-    const [annotations, setAnnotations] = useState([]);
+    // Загружаем альбом и артиста (если есть track.userId или track.albumId)
+    const {  album } = useAlbum(track?.albumId);
+    const {   user: artist } = useUser(album?.userId);
+
+    // 🔥 Сводные состояния
+    const isLoading = trackLoading || annotationsLoading;
+
+    // ===== СОХРАНЕННАЯ ЛОГИКА: Выделение текста и модальные окна =====
+    // (Всё ниже — без изменений, как ты просил)
 
     const [activeOffset, setActiveOffset] = useState(null);
     const [selectionState, setSelectionState] = useState(null);
-
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newAnnotationText, setNewAnnotationText] = useState("");
-
-    const [loadingAnnotations, setLoadingAnnotations] = useState(true);
-    const [error, setError] = useState("");
-
-    useEffect(() => {
-        if (!preloadedTrack) {
-            // На случай прямого входа по URL без state
-            setError("Song data was not passed. Open song from album page.");
-        }
-    }, [preloadedTrack]);
-
-    // ===== ЗАГРУЗКА АННОТАЦИЙ =====
-    useEffect(() => {
-        if (!lyricsId) return;
-
-        const loadAnnotations = async () => {
-            setLoadingAnnotations(true);
-            try {
-                const res = await lyricsService.getAnnotations(lyricsId);
-                const serverData = Array.isArray(res.data) ? res.data : [];
-                setAnnotations(serverData);
-                
-            } catch (err) {
-                console.error("Failed to load annotations:", err?.response?.data || err);
-                setAnnotations([]);
-            } finally {
-                setLoadingAnnotations(false);
-            }
-        };
-
-        loadAnnotations();
-    }, [lyricsId]);
 
     const lyricsText = useMemo(() => {
         const text = track?.text || "";
         return text.replace(/\r\n/g, "\n");
     }, [track?.text]);
 
-    // ===== НОРМАЛИЗАЦИЯ АННОТАЦИЙ =====
+    // Нормализация аннотаций (без изменений)
     const normalizedAnnotations = useMemo(() => {
         return (annotations || [])
             .map((a) => ({ ...a, from: Number(a.from), to: Number(a.to) }))
@@ -82,15 +67,14 @@ const LyricsView = () => {
             .sort((a, b) => a.from - b.from || String(a.id).localeCompare(String(b.id)));
     }, [annotations, lyricsText.length]);
 
+    // Вспомогательные функции (без изменений)
     const getGlobalOffset = (node, nodeOffset) => {
         let el = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
         while (el && el !== containerRef.current && !el.dataset?.start) el = el.parentElement;
         if (!el || el === containerRef.current) return null;
-
         const segStart = Number(el.dataset.start);
         const segEnd = Number(el.dataset.end);
         if (!Number.isFinite(segStart) || !Number.isFinite(segEnd)) return null;
-
         const global = segStart + nodeOffset;
         return Math.min(Math.max(global, segStart), segEnd);
     };
@@ -116,17 +100,13 @@ const LyricsView = () => {
             points.add(a.from);
             points.add(a.to);
         });
-
         const sorted = [...points].sort((a, b) => a - b);
         const result = [];
-
         for (let i = 0; i < sorted.length - 1; i++) {
             const from = sorted[i];
             const to = sorted[i + 1];
             if (to <= from) continue;
-
             const hasAnyAnnotation = normalizedAnnotations.some((a) => a.from < to && a.to > from);
-
             result.push({
                 from,
                 to,
@@ -134,7 +114,6 @@ const LyricsView = () => {
                 isAnnotated: hasAnyAnnotation,
             });
         }
-
         return result;
     }, [lyricsText, normalizedAnnotations]);
 
@@ -144,20 +123,17 @@ const LyricsView = () => {
             setSelectionState(null);
             return;
         }
-
         const range = sel.getRangeAt(0);
         if (!containerRef.current?.contains(range.commonAncestorContainer)) {
             setSelectionState(null);
             return;
         }
-
         const start = getGlobalOffset(range.startContainer, range.startOffset);
         const end = getGlobalOffset(range.endContainer, range.endOffset);
         if (start == null || end == null || start === end) {
             setSelectionState(null);
             return;
         }
-
         const from = Math.min(start, end);
         const to = Math.max(start, end);
         const selectedText = lyricsText.slice(from, to);
@@ -165,7 +141,6 @@ const LyricsView = () => {
             setSelectionState(null);
             return;
         }
-
         const rect = range.getBoundingClientRect();
         setSelectionState({
             from,
@@ -176,6 +151,9 @@ const LyricsView = () => {
         });
     };
 
+    // ===== СОХРАНЕННАЯ ЛОГИКА: Создание аннотации =====
+    // (Минимальное изменение: добавили invalidate вместо ручного setAnnotations)
+
     const submitAnnotation = async (e) => {
         e.preventDefault();
         if (!selectionState || !lyricsId) return;
@@ -184,7 +162,7 @@ const LyricsView = () => {
             setIsCreateModalOpen(false);
             navigate("/login", {
                 state: {
-                    from: location.pathname,
+                    from: window.location.pathname,
                     selectionState,
                     lyricsId,
                 },
@@ -204,14 +182,15 @@ const LyricsView = () => {
         };
 
         try {
+            // Отправляем запрос как раньше
             const res = await annotationService.create(payload);
             const saved = res?.data;
+
+            // 🔥 FIX: Вместо ручного обновления стейта — инвалидируем кэш!
+            // Это гарантирует, что данные обновятся и в этом компоненте, и в других местах
             if (saved) {
-                setAnnotations((prev) => [...prev, saved].sort((a, b) => a.from - b.from));
+                invalidateAnnotations();
                 setActiveOffset(Math.floor((saved.from + saved.to) / 2));
-            } else {
-                const refreshed = await lyricsService.getAnnotations(lyricsId);
-                setAnnotations(Array.isArray(refreshed.data) ? refreshed.data : []);
             }
         } catch (err) {
             console.error("Failed to save annotation:", err?.response?.data || err);
@@ -224,35 +203,55 @@ const LyricsView = () => {
         }
     };
 
+    // ===== ОТОБРАЖЕНИЕ: Нормализация данных для UI =====
+
     const trackTitle = track?.name || track?.title || "Track Title";
-    const artistName = album?.artist || "Artist";
-    const albumName = album?.name || "Album";
+    const artistName = artist?.login || album?.artistName || "Unknown Artist";
+    const albumName = album?.name || "Unknown Album";
     const releaseYear = album?.year || track?.year || "N/A";
+
+    // Обработка ошибки загрузки
+    if (trackError) {
+        return (
+            <div className={styles.errorPage}>
+                <Navbar />
+                <div className={styles.errorContent}>
+                    <h2>Failed to load lyrics</h2>
+                    <p>Please try again later</p>
+                    <button onClick={() => navigate(-1)}>Go Back</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.page}>
-            <Navbar/>
+            <Navbar />
 
+            {/* TRACK HERO */}
             <div className={styles.trackHero}>
                 <div className={styles.heroContent}>
                     <div className={styles.trackCoverLarge}>
                         <div className={styles.coverPlaceholder}>
-                        {album.imageUrl ? (
-                                        <img
-                                            src={`${CDN_BASE}/${album.imageUrl}`}
-                                            alt={album.name}
-                                            className={styles.albumCover}
-                                        />
-                                    ) : (
-                                        <div className={styles.albumCoverPlaceholder} />
-                                    )}
+                            {album?.imageUrl ? (
+                                <img
+                                    src={`${CDN_BASE}/${album.imageUrl}`}
+                                    alt={albumName}
+                                    className={styles.albumCover}
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <div className={styles.albumCoverPlaceholder} />
+                            )}
                         </div>
                         <div className={styles.coverGlow} />
                     </div>
                     <div className={styles.trackHeroInfo}>
                         <h1 className={styles.trackTitle}>{trackTitle}</h1>
                         <div className={styles.trackMeta}>
-                            <span className={styles.artistName}>{artistName}</span>
+              <span className={styles.artistName}>
+                {trackLoading || annotationsLoading ? "Loading..." : artistName}
+              </span>
                             <span className={styles.metaDivider}>•</span>
                             <span className={styles.albumName}>{albumName}</span>
                             <span className={styles.metaDivider}>•</span>
@@ -268,10 +267,11 @@ const LyricsView = () => {
                 </div>
 
                 <div className={styles.columnsGrid}>
+                    {/* LYRICS COLUMN */}
                     <div className={styles.column}>
                         <div className={styles.lyricsCard}>
-                            {error ? (
-                                <div className={styles.emptyState}>{error}</div>
+                            {isLoading ? (
+                                <div className={styles.emptyState}>Loading lyrics...</div>
                             ) : !lyricsText ? (
                                 <div className={styles.emptyState}>No lyrics text</div>
                             ) : (
@@ -280,16 +280,14 @@ const LyricsView = () => {
                                         if (!seg.isAnnotated) {
                                             return (
                                                 <span key={`p-${idx}`} data-start={seg.from} data-end={seg.to}>
-                                                    {seg.text}
-                                                </span>
+                          {seg.text}
+                        </span>
                                             );
                                         }
-
                                         const isInActiveGroup =
                                             activeGroupRange &&
                                             seg.from < activeGroupRange.to &&
                                             seg.to > activeGroupRange.from;
-
                                         return (
                                             <span
                                                 key={`a-${idx}`}
@@ -298,8 +296,8 @@ const LyricsView = () => {
                                                 className={`${styles.annotated} ${isInActiveGroup ? styles.annotatedActive : ""}`}
                                                 onClick={() => setActiveOffset(Math.floor((seg.from + seg.to) / 2))}
                                             >
-                                                {seg.text}
-                                            </span>
+                        {seg.text}
+                      </span>
                                         );
                                     })}
                                 </div>
@@ -307,13 +305,14 @@ const LyricsView = () => {
                         </div>
                     </div>
 
+                    {/* SIDEBAR: ANNOTATIONS */}
                     <div className={styles.sidebar}>
                         <div className={styles.sidebarCard}>
                             <h3 className={styles.sidebarTitle}>
                                 {activeAnnotations.length > 0 ? `Annotations (${activeAnnotations.length})` : "Annotations"}
                             </h3>
 
-                            {loadingAnnotations ? (
+                            {annotationsLoading ? (
                                 <div className={styles.annotationPlaceholder}>
                                     <p>Loading annotations...</p>
                                 </div>
@@ -326,9 +325,9 @@ const LyricsView = () => {
                                             </div>
                                             <p className={styles.annotationText}>{ann.text}</p>
                                             <div className={styles.annotationMeta}>
-                                                <span className={styles.annotationAuthor}>
-                                                    {ann.userId === user?.id ? "You" : "User"}
-                                                </span>
+                        <span className={styles.annotationAuthor}>
+                          {ann.userId === user?.id ? "You" : "User"}
+                        </span>
                                             </div>
                                         </div>
                                     ))}
@@ -344,6 +343,7 @@ const LyricsView = () => {
                 </div>
             </div>
 
+            {/* ===== КНОПКА ДОБАВЛЕНИЯ АННОТАЦИИ (без изменений) ===== */}
             {selectionState && (
                 <button
                     className={styles.addBtn}
@@ -359,6 +359,7 @@ const LyricsView = () => {
                 </button>
             )}
 
+            {/* ===== МОДАЛКА СОЗДАНИЯ АННОТАЦИИ (без изменений) ===== */}
             {isCreateModalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setIsCreateModalOpen(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -369,13 +370,13 @@ const LyricsView = () => {
                         </div>
 
                         <form onSubmit={submitAnnotation}>
-                            <textarea
-                                className={styles.textarea}
-                                placeholder="Write your annotation..."
-                                value={newAnnotationText}
-                                onChange={(e) => setNewAnnotationText(e.target.value)}
-                                rows={5}
-                            />
+              <textarea
+                  className={styles.textarea}
+                  placeholder="Write your annotation..."
+                  value={newAnnotationText}
+                  onChange={(e) => setNewAnnotationText(e.target.value)}
+                  rows={5}
+              />
                             <div className={styles.modalActions}>
                                 <button type="button" className={styles.btnGhost} onClick={() => setIsCreateModalOpen(false)}>
                                     Cancel

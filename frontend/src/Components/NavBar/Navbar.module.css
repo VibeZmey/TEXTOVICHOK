@@ -8,6 +8,7 @@
     position: sticky;
     top: 0;
     z-index: 100;
+    font-family: 'Roboto Slab', serif;
 }
 
 .navLeft, .navRight {
@@ -17,7 +18,11 @@
     cursor: pointer;
 }
 .navLeft {
-    color: #33a568;
+    background: linear-gradient(135deg, #2f6c4f, #43d893);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 500;
 }
 
 .navLink {

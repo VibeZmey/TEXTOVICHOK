@@ -2,7 +2,6 @@
     if (!token) return null;
     try {
         const payload = token.split(".")[1];
-        // add padding if needed
         const b = payload.replace(/-/g, "+").replace(/_/g, "/");
         const jsonStr = decodeURIComponent(
             atob(b)
@@ -17,7 +16,6 @@
 }
 
 export function mapUserFromToken(payload) {
-    // payload: { userId: "...", role: "Admin" | "User" }
     if (!payload) return null;
     return {
         id: payload.userId,

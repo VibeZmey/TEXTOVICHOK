@@ -1,210 +1,191 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+// src/pages/AdminPage/AdminPage.jsx
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import styles from "./AdminPage.module.css";
-import SearchBar from "../Components/SearchBar/SearchBar.jsx";
-import { userService, annotationService, albumService } from "../api/apiService";
+
+// Компоненты
 import Navbar from "../Components/NavBar/NavBar.jsx";
+
+// Хуки
+import {
+    useAllUsers,
+    useUserAlbums,
+    useUserAnnotations,
+    useBlockUser,
+    useApproveAnnotation,  // 👈 Новые хуки
+    useRejectAnnotation,
+} from "../hooks";
+
+const CDN_BASE = "http://localhost:9000";
 
 const AdminPage = () => {
     const navigate = useNavigate();
 
-    const [users, setUsers] = useState([]);
+    // 🔥 React Query: загрузка данных
+    const {
+        users,
+        isLoading: usersLoading,
+        isError: usersError
+    } = useAllUsers();
+
+    // 🔥 Локальные стейты — только для UI
     const [selectedUser, setSelectedUser] = useState(null);
-    const [userAlbums, setUserAlbums] = useState([]);
-    const [userAnnotations, setUserAnnotations] = useState([]);
     const [userSearchQuery, setUserSearchQuery] = useState("");
     const [showAllUsers, setShowAllUsers] = useState(false);
     const [expandedAnnotations, setExpandedAnnotations] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [loadingUser, setLoadingUser] = useState(false);
 
-    const reloadUsers = async () => {
-        const res = await userService.getAllUsers();
-        setUsers(Array.isArray(res.data) ? res.data : []);
-        return res.data || [];
-    };
+    // 🔥 Загружаем данные выбранного пользователя
+    const {
+        albums: userAlbums,
+        isLoading: albumsLoading
+    } = useUserAlbums(selectedUser?.id);
 
-    const loadSelectedUserData = async (userId) => {
-        const [albumsRes, annsRes] = await Promise.all([
-            userService.getUserAlbums(userId),
-            userService.getUserAnnotations(userId),
-        ]);
-        setUserAlbums(Array.isArray(albumsRes.data) ? albumsRes.data : []);
-        console.log("user annotations response:", annsRes.data);
-        setUserAnnotations(Array.isArray(annsRes.data) ? annsRes.data : []);
-    };
+    // 👇 Загружаем аннотации + тексты песен для фрагментов
+    const {
+        annotations: userAnnotations,
+        isLoading: annotationsLoading
+    } = useUserAnnotations(selectedUser?.id, { withLyricsText: true });
 
-    useEffect(() => {
-        const init = async () => {
-            setLoading(true);
-            try {
-                await reloadUsers();
-            } catch (e) {
-                console.error("Failed to load users:", e?.response?.data || e);
-                setUsers([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-        init();
-    }, []);
+    // 🔥 Мутации
+    const blockUserMutation = useBlockUser();
+    const approveAnnotationMutation = useApproveAnnotation();  // 👈 Новые мутации
+    const rejectAnnotationMutation = useRejectAnnotation();
 
-    const handleSelectUser = async (user) => {
-        setLoadingUser(true);
-        setSelectedUser(user);
-        try {
-            await loadSelectedUserData(user.id);
-        } catch (e) {
-            console.error("Failed to load selected user data:", e?.response?.data || e);
-            setUserAlbums([]);
-            setUserAnnotations([]);
-        } finally {
-            setLoadingUser(false);
-        }
-    };
+    // 🔥 Сводные состояния
+    const isLoading = usersLoading || albumsLoading || annotationsLoading;
+    const isMutating =
+        blockUserMutation.isPending ||
+        approveAnnotationMutation.isPending ||
+        rejectAnnotationMutation.isPending;
 
-    const filteredUsers = users.filter((user) =>
-        (user.login || "").toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-        (user.email || "").toLowerCase().includes(userSearchQuery.toLowerCase())
-    );
+    // ===== ФИЛЬТРАЦИЯ И ПОИСК =====
+    const filteredUsers = useMemo(() => {
+        if (!users) return [];
+        const query = userSearchQuery.toLowerCase();
+        return users.filter((user) =>
+            (user.login || "").toLowerCase().includes(query) ||
+            (user.email || "").toLowerCase().includes(query)
+        );
+    }, [users, userSearchQuery]);
 
     const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, 5);
     const hasMoreUsers = filteredUsers.length > 5;
 
-    // Ban/Unban toggle
+    // ===== УТИЛИТЫ =====
+    const truncateText = (text, maxLength = 60) => {
+        if (!text) return "";
+        if (text.length <= maxLength) return text;
+        return text.slice(0, maxLength) + "…";
+    };
+
+    const getAnnotationLyricsSnippet = (ann) => {
+        const lyricsText = ann._lyricsText;
+        if (lyricsText && Number.isFinite(ann.from) && Number.isFinite(ann.to)) {
+            const snippet = lyricsText.slice(ann.from, ann.to).trim();
+            if (snippet) {
+                return `"${snippet.replace(/\s+/g, ' ')}"`;
+            }
+        }
+        return annotationsLoading ? "Loading…" : "Text not available";
+    };
+
+    const getAnnotationSongName = (ann) => {
+        if (ann._lyrics?.name) return ann._lyrics.name;
+        if (ann.lyrics?.name) return ann.lyrics.name;
+        if (ann.lyricsId) return `Track (${ann.lyricsId.slice(0, 6)}...)`;
+        return "Unknown song";
+    };
+
+    const formatDuration = (seconds) => {
+        if (seconds == null) return "--:--";
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // ===== ОБРАБОТЧИКИ =====
     const handleToggleBlockUser = async (targetUser) => {
         try {
-            // попытка toggle через block endpoint
-            await userService.blockUser(targetUser.id);
-
-            let updatedUsers = await reloadUsers();
-            let fresh = updatedUsers.find((u) => u.id === targetUser.id);
-
-            // если состояние не поменялось — fallback через updateUser
-            if (fresh && fresh.isBlocked === targetUser.isBlocked) {
-                await userService.updateUser(targetUser.id, { isBlocked: !targetUser.isBlocked });
-                updatedUsers = await reloadUsers();
-                fresh = updatedUsers.find((u) => u.id === targetUser.id);
-            }
-
-            if (selectedUser?.id === targetUser.id && fresh) {
-                setSelectedUser(fresh);
-                await loadSelectedUserData(fresh.id);
+            await blockUserMutation.mutateAsync({
+                userId: targetUser.id,
+                isBlocked: !targetUser.isBlocked,
+            });
+            if (selectedUser?.id === targetUser.id && !targetUser.isBlocked) {
+                setSelectedUser(null);
             }
         } catch (e) {
-            console.error("Toggle ban/unban failed:", e?.response?.data || e);
+            console.error("Toggle ban failed:", e);
             alert("Ban/Unban failed");
         }
     };
 
-    // Аннотации: approve/reject
+    //APPROVE ANNOTATION
     const handleApproveAnnotation = async (annotationId) => {
-        if (!selectedUser) return;
-
         try {
-            try {
-                await annotationService.verify(annotationId);
-            } catch (e1) {
-                console.warn("Verify endpoint failed, fallback to update:", e1?.response?.data || e1);
-                await annotationService.update(annotationId, { status: "approved", isVerified: true });
-            }
-
-            await loadSelectedUserData(selectedUser.id);
+            await approveAnnotationMutation.mutateAsync(annotationId);
         } catch (e) {
-            console.error("Approve annotation failed:", e?.response?.data || e);
+            console.error("Approve annotation failed:", e);
             alert("Failed to approve annotation");
         }
     };
 
+    // ✅ REJECT ANNOTATION
     const handleRejectAnnotation = async (annotationId) => {
-        if (!selectedUser) return;
-
         try {
-            try {
-                await annotationService.reject(annotationId);
-            } catch (e1) {
-                console.warn("Reject endpoint failed, fallback to update:", e1?.response?.data || e1);
-                await annotationService.update(annotationId, { status: "rejected", isRejected: true });
-            }
-
-            await loadSelectedUserData(selectedUser.id);
+            await rejectAnnotationMutation.mutateAsync(annotationId);
         } catch (e) {
-            console.error("Reject annotation failed:", e?.response?.data || e);
+            console.error("Reject annotation failed:", e);
             alert("Failed to reject annotation");
         }
     };
 
-    // Альбомы: approve/reject
-    const handleApproveAlbum = async (albumId) => {
-        if (!selectedUser) return;
-        try {
-            await albumService.update(albumId, { status: "approved" });
-            await loadSelectedUserData(selectedUser.id);
-        } catch (e) {
-            console.error("Approve album failed:", e?.response?.data || e);
-            alert("Failed to approve album");
-        }
-    };
-
-    const handleRejectAlbum = async (albumId) => {
-        if (!selectedUser) return;
-        try {
-            await albumService.update(albumId, { status: "rejected" });
-            await loadSelectedUserData(selectedUser.id);
-        } catch (e) {
-            console.error("Reject album failed:", e?.response?.data || e);
-            alert("Failed to reject album");
-        }
-    };
-
-    const truncateText = (text, maxLength = 60) => {
-        if (!text) return "";
-        if (text.length <= maxLength) return text;
-        return text.slice(0, maxLength) + "...";
-    };
-
-    const resolveAnnotationStatus = (ann) => {
-        if (ann?.isVerified === true) return "approved";
-        if (ann?.isRejected === true) return "rejected";
-        return (ann?.status || "pending").toLowerCase();
-    };
-
-    const getAnnotationSong = (ann) => ann.lyrics;
-
-    const pendingAnnotations = userAnnotations.filter(
-        (a) => resolveAnnotationStatus(a) === "pending"
-    ).length;
-
-    const pendingAlbums = userAlbums.filter(
-        (a) => (a.status || "pending").toLowerCase() === "pending"
-    ).length;
+    // ===== ОБРАБОТКА ОШИБОК =====
+    if (usersError) {
+        return (
+            <div className={styles.errorPage}>
+                <Navbar />
+                <div className={styles.errorContent}>
+                    <h2>Failed to load admin panel</h2>
+                    <p>Please check your permissions and try again</p>
+                    <button onClick={() => navigate(-1)}>Go Back</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.page}>
-            <Navbar/>
+            <Navbar />
 
+            {/* ADMIN HERO */}
             <div className={styles.adminHero}>
                 <div className={styles.heroContent}>
                     <h1 className={styles.heroTitle}>Admin Panel</h1>
                     <div className={styles.stats}>
                         <div className={styles.statCard}>
-                            <span className={styles.statNumber}>{users.length}</span>
+                            <span className={styles.statNumber}>
+                                {usersLoading ? "…" : users?.length || 0}
+                            </span>
                             <span className={styles.statLabel}>Users</span>
                         </div>
                         <div className={styles.statCard}>
-                            <span className={styles.statNumber}>{pendingAnnotations}</span>
-                            <span className={styles.statLabel}>Pending Annotations</span>
+                            <span className={styles.statNumber}>
+                                {annotationsLoading ? "…" : userAnnotations?.length || 0}
+                            </span>
+                            <span className={styles.statLabel}>Annotations</span>
                         </div>
                         <div className={styles.statCard}>
-                            <span className={styles.statNumber}>{pendingAlbums}</span>
-                            <span className={styles.statLabel}>Pending Albums</span>
+                            <span className={styles.statNumber}>
+                                {albumsLoading ? "…" : userAlbums?.length || 0}
+                            </span>
+                            <span className={styles.statLabel}>Albums</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className={styles.contentWrapper}>
-                {/* USERS */}
+                {/* ===== USERS COLUMN ===== */}
                 <div className={styles.column}>
                     <div className={styles.sectionHeader}>
                         <h2 className={styles.sectionTitle}>Users</h2>
@@ -217,12 +198,13 @@ const AdminPage = () => {
                                 setUserSearchQuery(e.target.value);
                                 setShowAllUsers(false);
                             }}
+                            disabled={usersLoading}
                         />
                     </div>
 
                     <div className={styles.userList}>
-                        {loading ? (
-                            <div>Loading...</div>
+                        {usersLoading ? (
+                            <div className={styles.emptyState}>Loading users…</div>
                         ) : filteredUsers.length === 0 ? (
                             <div className={styles.emptyState}>
                                 <span className={styles.emptyIcon}>🔍</span>
@@ -242,9 +224,6 @@ const AdminPage = () => {
                                             <div className={styles.userLogin}>{user.login}</div>
                                             <div className={styles.userEmail}>{user.email}</div>
                                             <div className={styles.userMeta}>
-                                                <span className={`${styles.roleBadge} ${styles[user.role?.toLowerCase()]}`}>
-                                                    {user.role}
-                                                </span>
                                                 <span className={`${styles.statusBadge} ${styles[user.isBlocked ? "banned" : "active"]}`}>
                                                     {user.isBlocked ? "banned" : "active"}
                                                 </span>
@@ -256,14 +235,18 @@ const AdminPage = () => {
                                         <button
                                             className={`${styles.actionBtn} ${styles.banBtn}`}
                                             onClick={() => handleToggleBlockUser(user)}
-                                            title={user.isBlocked ? "Unban" : "Ban"}
+                                            disabled={isMutating || blockUserMutation.isPending}
+                                            title={user.isBlocked ? "BANNED" : "BAN"}
                                         >
-                                            {user.isBlocked ? "Unban" : "Ban"}
+                                            {blockUserMutation.isPending && selectedUser?.id === user.id
+                                                ? "⏳"
+                                                : user.isBlocked ? "BANNED" : "BAN"}
                                         </button>
                                         <button
                                             className={`${styles.actionBtn} ${styles.selectBtn}`}
-                                            onClick={() => handleSelectUser(user)}
-                                            title="Select"
+                                            onClick={() => setSelectedUser(user)}
+                                            disabled={isMutating}
+                                            title="View details"
                                         >
                                             👁
                                         </button>
@@ -274,75 +257,110 @@ const AdminPage = () => {
                     </div>
 
                     {hasMoreUsers && !showAllUsers && (
-                        <button className={styles.showAllButton} onClick={() => setShowAllUsers(true)}>
+                        <button
+                            className={styles.showAllButton}
+                            onClick={() => setShowAllUsers(true)}
+                            disabled={usersLoading}
+                        >
                             Show all ({filteredUsers.length})
                         </button>
                     )}
                     {showAllUsers && (
-                        <button className={styles.showAllButton} onClick={() => setShowAllUsers(false)}>
+                        <button
+                            className={styles.showAllButton}
+                            onClick={() => setShowAllUsers(false)}
+                            disabled={usersLoading}
+                        >
                             Show less
                         </button>
                     )}
                 </div>
 
-                {/* ANNOTATIONS */}
+                {/* ===== ANNOTATIONS COLUMN — С КНОПКАМИ МОДЕРАЦИИ ===== */}
                 <div className={styles.column}>
                     <div className={styles.sectionHeader}>
                         <h2 className={styles.sectionTitle}>Annotations</h2>
-                        {selectedUser && <span className={styles.sectionCount}>{userAnnotations.length}</span>}
+                        {selectedUser && (
+                            <span className={styles.sectionCount}>
+                                {annotationsLoading ? "…" : userAnnotations?.length || 0}
+                            </span>
+                        )}
                     </div>
 
                     <div className={styles.annotationList}>
                         {!selectedUser ? (
-                            <div className={styles.emptyState}><p>Select a user to view their annotations</p></div>
-                        ) : loadingUser ? (
-                            <div className={styles.emptyState}>Loading...</div>
-                        ) : userAnnotations.length === 0 ? (
+                            <div className={styles.emptyState}>
+                                <p>Select a user to view their annotations</p>
+                            </div>
+                        ) : annotationsLoading ? (
+                            <div className={styles.emptyState}>Loading…</div>
+                        ) : !userAnnotations?.length ? (
                             <div className={styles.emptyState}>
                                 <span className={styles.emptyIcon}>💬</span>
                                 <p>No annotations from this user</p>
                             </div>
                         ) : (
                             userAnnotations.map((ann) => {
-                                const status = resolveAnnotationStatus(ann);
+                                const songName = getAnnotationSongName(ann);
+                                const lyricsSnippet = getAnnotationLyricsSnippet(ann);
                                 const annotationText = ann.text || ann.annotationText || "";
                                 const isExpanded = expandedAnnotations[ann.id];
                                 const displayText = isExpanded ? annotationText : truncateText(annotationText);
                                 const hasMoreText = annotationText.length > 60;
+                                const status = ann.isVerified ? "approved" : ann.isRejected ? "rejected" : "pending";
 
                                 return (
                                     <div key={ann.id} className={`${styles.annotationCard} ${styles[status]}`}>
                                         <div className={styles.annotationHeader}>
-                                            <div className={styles.annotationSong}>{getAnnotationSong(ann)}</div>
-                                            <span className={`${styles.statusBadge} ${styles[status]}`}>{status}</span>
+                                            <div className={styles.annotationSong}>
+                                                <span className={styles.songNameText}>{songName}</span>
+                                            </div>
+                                            <span className={`${styles.statusBadge} ${styles[status]}`}>
+                                                {status}
+                                            </span>
                                         </div>
-                                        <div className={styles.annotationText}>{displayText || "No annotation text"}</div>
+
+                                        <div className={styles.annotationQuote}>
+                                            <blockquote className={styles.lyricsSnippet}>
+                                                {lyricsSnippet}
+                                            </blockquote>
+                                        </div>
+
+                                        <div className={styles.annotationText}>
+                                            {displayText || <span className={styles.noText}>No annotation text</span>}
+                                        </div>
 
                                         {hasMoreText && (
                                             <button
                                                 className={styles.showMoreBtn}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setExpandedAnnotations((prev) => ({ ...prev, [ann.id]: !prev[ann.id] }));
+                                                    setExpandedAnnotations((prev) => ({
+                                                        ...prev,
+                                                        [ann.id]: !prev[ann.id]
+                                                    }));
                                                 }}
                                             >
                                                 {isExpanded ? "Show less" : "Show more"}
                                             </button>
                                         )}
 
+                                        {/* КНОПКИ МОДЕРАЦИИ — только для pending */}
                                         {status === "pending" && (
                                             <div className={styles.annotationActions}>
                                                 <button
                                                     className={`${styles.actionBtnSmall} ${styles.approveBtn}`}
                                                     onClick={() => handleApproveAnnotation(ann.id)}
+                                                    disabled={isMutating || approveAnnotationMutation.isPending}
                                                 >
-                                                    Approve
+                                                    {approveAnnotationMutation.isPending ? "⏳" : "Approve"}
                                                 </button>
                                                 <button
                                                     className={`${styles.actionBtnSmall} ${styles.rejectBtn}`}
                                                     onClick={() => handleRejectAnnotation(ann.id)}
+                                                    disabled={isMutating || rejectAnnotationMutation.isPending}
                                                 >
-                                                    Reject
+                                                    {rejectAnnotationMutation.isPending ? "⏳" : "Reject"}
                                                 </button>
                                             </div>
                                         )}
@@ -353,19 +371,25 @@ const AdminPage = () => {
                     </div>
                 </div>
 
-                {/* ALBUMS */}
+                {/* ===== ALBUMS COLUMN ===== */}
                 <div className={styles.column}>
                     <div className={styles.sectionHeader}>
                         <h2 className={styles.sectionTitle}>Albums</h2>
-                        {selectedUser && <span className={styles.sectionCount}>{userAlbums.length}</span>}
+                        {selectedUser && (
+                            <span className={styles.sectionCount}>
+                                {albumsLoading ? "…" : userAlbums?.length || 0}
+                            </span>
+                        )}
                     </div>
 
                     <div className={styles.albumList}>
                         {!selectedUser ? (
-                            <div className={styles.emptyState}><p>Select a user to view their albums</p></div>
-                        ) : loadingUser ? (
-                            <div className={styles.emptyState}>Loading...</div>
-                        ) : userAlbums.length === 0 ? (
+                            <div className={styles.emptyState}>
+                                <p>Select a user to view their albums</p>
+                            </div>
+                        ) : albumsLoading ? (
+                            <div className={styles.emptyState}>Loading…</div>
+                        ) : !userAlbums?.length ? (
                             <div className={styles.emptyState}>
                                 <span className={styles.emptyIcon}>🎵</span>
                                 <p>No albums from this user</p>
@@ -373,52 +397,78 @@ const AdminPage = () => {
                         ) : (
                             userAlbums.map((album) => {
                                 const albumName = album.name || "Unknown Album";
-                                const artist = album.artist || selectedUser?.login || "Unknown Artist";
-                                const status = (album.status || "pending").toLowerCase();
-                                const songs = album.songs || [];
+                                const albumYear = album.year || "N/A";
+                                const songs = album.songs || album.lyrics || album.tracks || [];
 
                                 return (
-                                    <div key={album.id} className={`${styles.albumCard} ${styles[status]}`}>
+                                    <div key={album.id} className={styles.albumCard}>
                                         <div className={styles.albumHeader}>
-                                            <div className={styles.albumCover}>
-                                                {album.coverImage ? <img src={album.coverImage} alt={albumName} /> : <span>🎵</span>}
-                                            </div>
-                                            <div className={styles.albumInfo}>
-                                                <div className={styles.albumName}>{albumName}</div>
-                                                <div className={styles.albumArtist}>{artist}</div>
-                                                <div className={styles.albumMeta}>
-                                                    {songs.length} song{songs.length !== 1 ? "s" : ""} • {album.year || new Date().getFullYear()}
-                                                </div>
-                                            </div>
-                                            <span className={`${styles.statusBadge} ${styles[status]}`}>{status}</span>
-                                        </div>
-
-                                        <div className={styles.songsList}>
-                                            {songs.length === 0 && <div className={styles.emptySong}>No songs in this album</div>}
-                                            {songs.map((song) => (
-                                                <div key={song.id || song.name} className={styles.songItem}>
-                                                    <div className={styles.songInfo}>
-                                                        <span className={styles.songName}>{song.name}</span>
-                                                        {song.year && <span className={styles.songYear}>({song.year})</span>}
+                                            <div className={styles.albumCoverWrapper}>
+                                                {album.imageUrl ? (
+                                                    <img
+                                                        src={`${CDN_BASE}/${album.imageUrl}`}
+                                                        alt={albumName}
+                                                        className={styles.albumCover}
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <div className={styles.albumCoverPlaceholder}>
+                                                        <span className={styles.coverIcon}>🎵</span>
                                                     </div>
+                                                )}
+                                            </div>
+
+                                            <div className={styles.albumInfo}>
+                                                <h3 className={styles.albumName}>{albumName}</h3>
+                                                <div className={styles.albumMeta}>
+                                                    <span className={styles.metaItem}>{songs.length} track{songs.length !== 1 ? "s" : ""}</span>
+                                                    <span className={styles.metaDivider}>•</span>
+                                                    <span className={styles.metaItem}>{albumYear}</span>
                                                 </div>
-                                            ))}
+                                                {album.description && (
+                                                    <p className={styles.albumDescription}>
+                                                        {truncateText(album.description, 120)}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
 
-                                        {status === "pending" && (
-                                            <div className={styles.albumActions}>
-                                                <button
-                                                    className={`${styles.actionBtnSmall} ${styles.approveBtn}`}
-                                                    onClick={() => handleApproveAlbum(album.id)}
-                                                >
-                                                    Approve
-                                                </button>
-                                                <button
-                                                    className={`${styles.actionBtnSmall} ${styles.rejectBtn}`}
-                                                    onClick={() => handleRejectAlbum(album.id)}
-                                                >
-                                                    Reject
-                                                </button>
+                                        {songs.length > 0 && (
+                                            <div className={styles.tracklistContainer}>
+                                                <div className={styles.tracklistHeader}>
+                                                    <span className={styles.tracklistTitle}>Tracklist</span>
+                                                    <span className={styles.tracklistCount}>{songs.length}</span>
+                                                </div>
+
+                                                <ul className={styles.tracklist}>
+                                                    {songs.map((song, index) => {
+                                                        const trackName = song.name || song.title || "Untitled";
+                                                        const duration = formatDuration(song.duration);
+
+                                                        return (
+                                                            <li
+                                                                key={song.id || index}
+                                                                className={styles.trackItem}
+                                                                title={trackName}
+                                                            >
+                                                                <span className={styles.trackNumber}>
+                                                                    {String(index + 1).padStart(2, '0')}
+                                                                </span>
+                                                                <div className={styles.trackDetails}>
+                                                                    <span className={styles.trackName}>{trackName}</span>
+                                                                    {song.description && (
+                                                                        <span className={styles.trackDescription}>
+                                                                            {truncateText(song.description, 40)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {duration !== "--:--" && (
+                                                                    <span className={styles.trackDuration}>{duration}</span>
+                                                                )}
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
                                             </div>
                                         )}
                                     </div>

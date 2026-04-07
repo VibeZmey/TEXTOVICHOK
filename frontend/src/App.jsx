@@ -5,26 +5,27 @@ import AlbumPage from "./Pages/AlbumPage";
 import ProfilePage from "./Pages/ProfilePage";
 import AdminPage from "./Pages/AdminPage";
 import LoginPage from "./Pages/LoginPage";
-import LyricsView from "./Components/Lyrics/LyricsView";
+import LyricsView from "./Pages/LyricsView.jsx";
 import "./index.css";
-import PrivateRoute from "./Router/PrivateRout"; // <- проверь точное имя файла
+import PrivateRoute from "./Router/PrivateRout";
+import Footer from "./Components/Footer/Footer.jsx"; // <- проверь точное имя файла
 
 function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
                 <Routes>
-                    <Route path="/" element={<Navigate to="/home" replace />} />
+                    <Route path="/" element={<Navigate to="/home" replace/>}/>
 
-                    <Route path="/home" element={<HomePage />} />
-                    <Route path="/album/:id" element={<AlbumPage />} />
-                    <Route path="/song/:id" element={<LyricsView />} />
+                    <Route path="/home" element={<HomePage/>}/>
+                    <Route path="/album/:id" element={<AlbumPage/>}/>
+                    <Route path="/song/:id" element={<LyricsView/>}/>
 
                     <Route
                         path="/profile"
                         element={
                             <PrivateRoute roles={["User", "Admin"]}>
-                                <ProfilePage />
+                                <ProfilePage/>
                             </PrivateRoute>
                         }
                     />
@@ -33,14 +34,15 @@ function App() {
                         path="/admin"
                         element={
                             <PrivateRoute roles={["Admin"]}>
-                                <AdminPage />
+                                <AdminPage/>
                             </PrivateRoute>
                         }
                     />
 
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="*" element={<Navigate to="/home" replace />} />
+                    <Route path="/login" element={<LoginPage/>}/>
+                    <Route path="*" element={<Navigate to="/home" replace/>}/>
                 </Routes>
+                <Footer/>
             </AuthProvider>
         </BrowserRouter>
     );

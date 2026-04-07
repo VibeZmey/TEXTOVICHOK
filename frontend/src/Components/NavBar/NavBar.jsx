@@ -19,10 +19,7 @@ const Navbar = () => {
                 TEXTOVICHEK
             </div>
 
-            <SearchBar
-                placeholder="Search lyrics or artists"
-                onSearch={(query) => console.log(query)}
-            />
+            {isAuthenticated && <SearchBar showIcon={true} />}
 
             <div className={styles.navRight}>
                 {isAuthenticated ? (

@@ -8,7 +8,6 @@ const PrivateRoute = ({ children, roles }) => {
     if (!isAuthenticated) return <Navigate to="/login" replace />;
 
     if (roles?.length && user?.role) {
-        // роли всегда сравниваем регистронезависимо
         const allowed = roles.map(r => r.toLowerCase());
         if (!allowed.includes(user.role.toLowerCase())) {
             return <Navigate to="/profile" replace />;
