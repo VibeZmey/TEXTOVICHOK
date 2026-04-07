@@ -129,7 +129,7 @@ const AdminPage = () => {
         }
     };
 
-    // ✅ REJECT ANNOTATION
+    //REJECT ANNOTATION
     const handleRejectAnnotation = async (annotationId) => {
         try {
             await rejectAnnotationMutation.mutateAsync(annotationId);

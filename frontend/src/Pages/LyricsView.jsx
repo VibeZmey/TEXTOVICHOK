@@ -217,8 +217,10 @@ const LyricsView = () => {
     }
 
     // ===== ФИЛЬТРАЦИЯ АННОТАЦИЙ ПО СТАТУСУ =====
-    // Показываем только approved и pending, скрываем rejected
-    const visibleAnnotations = activeAnnotations.filter((ann) => ann.isRejected !== "rejected", );
+    const visibleAnnotations = useMemo(() => {
+        return (activeAnnotations || [])
+            .filter((ann) => !ann.isRejected);
+    }, [activeAnnotations]);
 
     return (
         <div className={styles.page}>
@@ -314,31 +316,37 @@ const LyricsView = () => {
                                 </div>
                             ) : visibleAnnotations.length > 0 ? (
                                 <div className={styles.annotationsList}>
-                                    {visibleAnnotations.map((ann) => (
-                                        <div
-                                            key={ann.id}
-                                            className={`${styles.annotationCard} ${styles[ann.status] || ""}`}
-                                        >
-                                            <div className={styles.annotationHeader}>
-                                                <div className={styles.annotationQuote}>
-                                                    "{lyricsText.slice(ann.from, ann.to)}"
-                                                </div>
+                                    {visibleAnnotations.map((ann) => {
+                                        // Определяем, показывать ли бейдж "Непроверенная"
+                                        const isPending = !ann.isVerified; // Если не verified и не rejected → pending
+                                        const cardClass = isPending ? styles.pending : styles.approved;
 
-                                                {/* ← БЕЙДЖ СТАТУСА: Показываем только для pending */}
-                                                {ann.isRejected !== "rejected" && ann.isVerified !== "verified" && (
-                                                    <span className={`${styles.statusBadge} ${styles.pending}`}>
-                                                        Непроверенная
-                                                    </span>
-                                                )}
+                                        return (
+                                            <div
+                                                key={ann.id}
+                                                className={`${styles.annotationCard} ${cardClass}`}
+                                            >
+                                                <div className={styles.annotationHeader}>
+                                                    <div className={styles.annotationQuote}>
+                                                        "{lyricsText.slice(ann.from, ann.to)}"
+                                                    </div>
+
+                                                    {/* ← Показываем бейдж только для непроверенных */}
+                                                    {isPending && (
+                                                        <span className={`${styles.statusBadge} ${styles.pending}`}>
+                                Непроверенная
+                            </span>
+                                                    )}
+                                                </div>
+                                                <p className={styles.annotationText}>{ann.text}</p>
+                                                <div className={styles.annotationMeta}>
+                        <span className={styles.annotationAuthor}>
+                            {ann.userId === user?.id ? "You" : "User"}
+                        </span>
+                                                </div>
                                             </div>
-                                            <p className={styles.annotationText}>{ann.text}</p>
-                                            <div className={styles.annotationMeta}>
-                                                <span className={styles.annotationAuthor}>
-                                                    {ann.userId === user?.id ? "You" : "User"}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className={styles.annotationPlaceholder}>
